@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Martín Marzorati - Project Manager</title>
+    <style>
+        :root {
+            --primary-color: #2d3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --text-color: #333;
+            --text-light: #7f8c8d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            color: var(--text-color);
+            background-color: #f9f9f9;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 80px 0 50px;
+            position: relative;
+        }
+        
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 5px solid white;
+            margin-bottom: 20px;
+            background-color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            font-weight: 400;
+            margin-bottom: 20px;
+        }
+        
+        .contact-info {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .contact-info a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.3s;
+        }
+        
+        .contact-info a:hover {
+            color: var(--secondary-color);
+        }
+        
+        .resume-nav {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .nav-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .nav-container a {
+            padding: 15px 20px;
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .nav-container a:hover {
+            background-color: var(--light-color);
+            color: var(--secondary-color);
+        }
+        
+        .nav-container a.active {
+            color: var(--secondary-color);
+            border-bottom: 3px solid var(--secondary-color);
+        }
+        
+        section {
+            padding: 60px 0;
+        }
+        
+        section:nth-child(even) {
+            background-color: white;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-align: center;
+            position: relative;
+        }
+        
+        h2::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            margin: 10px auto 0;
+        }
+        
+        .summary {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .experience-item {
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .experience-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        h3 {
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .job-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .job-title h3 {
+            margin-right: 15px;
+        }
+        
+        .company-date {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+        
+        .company {
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        
+        .experience-item ul {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .experience-item ul li {
+            margin-bottom: 8px;
+        }
+        
+        .contact-person {
+            font-style: italic;
+            color: var(--text-light);
+        }
+        
+        .skills-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .skill-category {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .skill-category:hover {
+            transform: translateY(-5px);
+        }
+        
+        .skill-category h3 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+        }
+        
+        .skill-category ul {
+            list-style: none;
+        }
+        
+        .skill-category ul li {
+            padding: 5px 0;
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .skill-category ul li::before {
+            content: "•";
+            color: var(--secondary-color);
+            font-weight: bold;
+            display: inline-block;
+            width: 15px;
+            margin-left: -15px;
+        }
+        
+        .education-item {
+            margin-bottom: 25px;
+        }
+        
+        .education-item h3 {
+            font-size: 1.3rem;
+        }
+        
+        .education-info {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+        
+        .school {
+            font-weight: 500;
+        }
+        
+        .projects-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .project-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .project-content {
+            padding: 20px;
+        }
+        
+        .project-title {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--dark-color);
+        }
+        
+        .languages-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .language-item {
+            background-color: white;
+            padding: 15px 25px;
+            border-radius: 30px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .language-name {
+            font-weight: 600;
+        }
+        
+        .language-level {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        .footer-text {
+            margin-bottom: 15px;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .social-links a {
+            color: white;
+            font-size: 1.5rem;
+            transition: color 0.3s;
+        }
+        
+        .social-links a:hover {
+            color: var(--secondary-color);
+        }
+        
+        .download-cv {
+            display: inline-block;
+            margin-top: 20px;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .download-cv:hover {
+            background-color: #2980b9;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .nav-container a {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            section {
+                padding: 40px 0;
+            }
+            
+            h2 {
+                font-size: 1.6rem;
+            }
+            
+            h3 {
+                font-size: 1.3rem;
+            }
+            
+            .job-title, .company-date {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .job-title h3 {
+                margin-bottom: 5px;
+            }
+            
+            .company-date {
+                gap: 5px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header id="home">
+        <div class="container header-content">
+            <div class="profile-pic">M</div>
+            <h1>Martín Marzorati</h1>
+            <p class="subtitle">Project Manager with Technical Expertise</p>
+            <div class="contact-info">
+                <a href="mailto:martin.e.marzorati@gmail.com">
+                    <i class="fas fa-envelope"></i> martin.e.marzorati@gmail.com
+                </a>
+                <a href="tel:+4915128314926">
+                    <i class="fas fa-phone"></i> +4915128314926
+                </a>
+                <a href="#">
+                    <i class="fas fa-map-marker-alt"></i> Nürnberg, Germany
+                </a>
+                <a href="https://linkedin.com/in/martinmarzorati" target="_blank">
+                    <i class="fab fa-linkedin"></i> linkedin.com/in/martinmarzorati
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <nav class="resume-nav">
+        <div class="container nav-container">
+            <a href="#home" class="active">Home</a>
+            <a href="#about">About</a>
+            <a href="#experience">Experience</a>
+            <a href="#skills">Skills</a>
+            <a href="#projects">Projects</a>
+            <a href="#education">Education</a>
+            <a href="#languages">Languages</a>
+        </div>
+    </nav>
+
+    <section id="about">
+        <div class="container">
+            <h2>Professional Summary</h2>
+            <p class="summary">
+                Detail-oriented Project Manager with 7+ years of experience leading cross-functional teams in digital media and tech environments. 
+                Combines strong technical background in software development with exceptional leadership skills. 
+                Proficient in multiple programming languages and experienced in maintaining server infrastructure. 
+                Skilled at optimizing workflows and delivering complex projects on time and within budget.
+            </p>
+        </div>
+    </section>
+
+    <section id="experience">
+        <div class="container">
+            <h2>Professional Experience</h2>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Operations Manager</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Stink Studios</span>
+                    <span class="date">07/2022 - Present</span>
+                </div>
+                <p class="location">Buenos Aires/Remote</p>
+                <ul>
+                    <li>Lead and coordinate cross-functional teams across Buenos Aires office, improving project delivery rates by 15%</li>
+                    <li>Develop and implement standardized workflows between Production and Creative departments, reducing delivery times by 20%</li>
+                    <li>Establish technical requirements and specifications for client projects, ensuring alignment with business objectives</li>
+                    <li>Manage resource allocation across multiple simultaneous projects, maintaining a 95% on-time delivery rate</li>
+                    <li>Facilitate communication between technical and non-technical stakeholders to ensure project requirements are met</li>
+                </ul>
+                <p class="contact-person">Contact: Ivan Faerman (ivan@stinkstudios.com)</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Producer</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Draftline Buenos Aires</span>
+                    <span class="date">03/2021 - 07/2022</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Coordinated end-to-end production for 360° campaigns across multiple brands (Corona, Stella Artois)</li>
+                    <li>Managed budgets exceeding $500K while meeting all project deadlines and quality benchmarks</li>
+                    <li>Supervised external suppliers for product shooting, negotiating favorable terms that reduced costs by 12%</li>
+                    <li>Implemented technical solutions to streamline content approval processes, reducing feedback cycles by 30%</li>
+                    <li>Collaborated with development teams to integrate campaign materials with digital platforms</li>
+                </ul>
+                <p class="contact-person">Contact: Sebastian Torrela (sebastor@quilmes.com.ar)</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Senior Producer / Product Manager</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">dift.co</span>
+                    <span class="date">09/2018 - 03/2021</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Served as Product Manager for major brands including Netflix, XPL, and Filo.news</li>
+                    <li>Designed and implemented technical workflows for the Filo.news content team, increasing output by 35%</li>
+                    <li>Led development team in creating custom content management solutions for digital publishing</li>
+                    <li>Coordinated teams for creation and distribution of audiovisual content, managing entire production pipeline</li>
+                    <li>Applied coding knowledge to develop automation scripts that reduced post-production time by 25%</li>
+                </ul>
+                <p class="contact-person">Contact: Ivan Faerman</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Post-Production Specialist</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Cinequanon</span>
+                    <span class="date">10/2011 - 03/2016</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Supervised VFX production on commercial shoots, ensuring technical specifications were met</li>
+                    <li>Created motion graphics and animations using After Effects for national advertising campaigns</li>
+                    <li>Developed custom scripts and macros to automate repetitive post-production tasks</li>
+                    <li>Collaborated with directors to implement technical solutions for complex visual requirements</li>
+                </ul>
+                <p class="contact-person">Contact: Sebastian Vega (sebastian@cinequanon.com.ar)</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="skills">
+        <div class="container">
+            <h2>Technical Skills & Expertise</h2>
+            <div class="skills-container">
+                <div class="skill-category">
+                    <h3>Programming</h3>
+                    <ul>
+                        <li>JavaScript</li>
+                        <li>Python</li>
+                        <li>HTML/CSS</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Design Software</h3>
+                    <ul>
+                        <li>Adobe Premiere Pro</li>
+                        <li>After Effects</li>
+                        <li>Photoshop</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Infrastructure</h3>
+                    <ul>
+                        <li>Home server administration</li>
+                        <li>Network configuration</li>
+                        <li>Linux environment</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Project Management</h3>
+                    <ul>
+                        <li>Resource allocation</li>
+                        <li>Budget management</li>
+                        <li>Timeline development</li>
+                        <li>Risk mitigation</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Methodologies</h3>
+                    <ul>
+                        <li>Agile</li>
+                        <li>Scrum</li>
+                        <li>Waterfall</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Soft Skills</h3>
+                    <ul>
+                        <li>Team leadership</li>
+                        <li>Cross-functional communication</li>
+                        <li>Conflict resolution</li>
+                        <li>Problem-solving</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="projects">
+        <div class="container">
+            <h2>Personal Projects</h2>
+            <div class="projects-container">
+                <div class="project-card">
+                    <div class="project-content">
+                        <h3 class="project-title">Home Server Infrastructure</h3>
+                        <p>Design, implementation, and ongoing maintenance of personal home server for media hosting, application deployment, and network services. This project demonstrates practical knowledge of server configuration, networking, and system administration.</p>
+                    </div>
+                </div>
+                <div class="project-card">
+                    <div class="project-content">
+                        <h3 class="project-title">Automation Scripts</h3>
+                        <p>Development of custom tools for workflow optimization in media production environments. Created Python and JavaScript scripts to automate repetitive tasks, improving efficiency and reducing manual errors.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="education">
+        <div class="container">
+            <h2>Education</h2>
+            
+            <div class="education-item">
+                <h3>Tech Developer Program</h3>
+                <div class="education-info">
+                    <span class="school">Digital House</span>
+                    <span class="date">03/2021 - 10/2023</span>
+                </div>
+            </div>
+            
+            <div class="education-item">
+                <h3>Bachelor's Degree in Radio and TV Production and Direction</h3>
+                <div class="education-info">
+                    <span class="school">Universidad de Belgrano</span>
+                    <span class="date">03/2008 - 12/2011</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="languages">
+        <div class="container">
+            <h2>Languages</h2>
+            <div class="languages-container">
+                <div class="language-item">
+                    <span class="language-name">Spanish</span>
+                    <span class="language-level">(Native)</span>
+                </div>
+                <div class="language-item">
+                    <span class="language-name">English</span>
+                    <span class="language-level">(Fluent)</span>
+                </div>
+                <div class="language-item">
+                    <span class="language-name">German</span>
+                    <span class="language-level">(Conversational)</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p class="footer-text">© 2025 Martín Marzorati. All rights reserved.</p>
+            <div class="social-links">
+                <a href="https://linkedin.com/in/martinmarzorati" target="_blank"><i class="fab fa-linkedin"></i></a>
+                <a href="https://github.com/" target="_blank"><i class="fab fa-github"></i></a>
+                <a href="#" target="_blank"><i class="fab fa-twitter"></i></a>
+            </div>
+            <a href="#" class="download-cv">Download CV</a>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                
+                window.scrollTo({
+                    top: targetElement.offsetTop - document.querySelector('.resume-nav').offsetHeight,
+                    behavior: 'smooth'
+                });
+                
+                // Update active link
+                document.querySelectorAll('nav a').forEach(link => {
+                    link.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+        
+        // Update active nav link on scroll
+        window.addEventListener('scroll', function() {
+            const scrollPosition = window.scrollY + document.querySelector('.resume-nav').offsetHeight + 50;
+            
+            document.querySelectorAll('section').forEach(section => {
+                if (section.offsetTop <= scrollPosition && section.offsetTop + section.offsetHeight > scrollPosition) {
+                    const currentId = section.getAttribute('id');
+                    document.querySelectorAll('nav a').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + currentId) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+            
+            // Handle home section separately
+            if (scrollPosition < document.querySelector('#about').offsetTop) {
+                document.querySelectorAll('nav a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#home') {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
