@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (downloadButton) {
         downloadButton.addEventListener('click', function(e) {
             // This would be connected to your PDF resume when available
-            const pdfAvailable = false; // Set to true when you have a PDF to link
+            const pdfAvailable = true; // Set to true when you have a PDF to link
             
             if (!pdfAvailable) {
                 e.preventDefault();
