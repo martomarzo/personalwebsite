@@ -97,3 +97,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const skillBars = document.querySelectorAll('.skill-level-bar');
+    skillBars.forEach(bar => {
+        const level = bar.querySelector('.skill-fill').getAttribute('data-level');
+        const fillElement = bar.querySelector('.skill-fill');
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    fillElement.style.width = `${level}%`;
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        observer.observe(bar);
+        fillElement.style.width = '0%'; // Initialize width to 0 for animation
+    });
+});

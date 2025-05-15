@@ -1,410 +1,507 @@
 :root {
-            --primary-color: #2d3e50;
-            --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --light-color: #ecf0f1;
-            --dark-color: #2c3e50;
-            --text-color: #333;
-            --text-light: #7f8c8d;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            color: var(--text-color);
-            background-color: #f9f9f9;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 80px 0 50px;
-            position: relative;
-        }
-        
-        .header-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-        
-        .profile-pic {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            border: 5px solid white;
-            margin-bottom: 20px;
-            background-color: var(--secondary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-            color: white;
-            background-image: url('photos/Martin.jpg');
-            background-size: cover;
-            background-position: center;
-        }
-        
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .subtitle {
-            font-size: 1.2rem;
-            font-weight: 400;
-            margin-bottom: 20px;
-        }
-        
-        .contact-info {
-            margin: 15px 0;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        .contact-info a {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: color 0.3s;
-        }
-        
-        .contact-info a:hover {
-            color: var(--secondary-color);
-        }
-        
-        .resume-nav {
-            background-color: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        .nav-container {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-container a {
-            padding: 15px 20px;
-            text-decoration: none;
-            color: var(--primary-color);
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-        
-        .nav-container a:hover {
-            background-color: var(--light-color);
-            color: var(--secondary-color);
-        }
-        
-        .nav-container a.active {
-            color: var(--secondary-color);
-            border-bottom: 3px solid var(--secondary-color);
-        }
-        
-        section {
-            padding: 60px 0;
-        }
-        
-        section:nth-child(even) {
-            background-color: white;
-        }
-        
-        h2 {
-            font-size: 2rem;
-            margin-bottom: 30px;
-            color: var(--primary-color);
-            text-align: center;
-            position: relative;
-        }
-        
-        h2::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 4px;
-            background-color: var(--secondary-color);
-            margin: 10px auto 0;
-        }
-        
-        .summary {
-            max-width: 800px;
-            margin: 0 auto;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-        
-        .experience-item {
-            margin-bottom: 40px;
-            position: relative;
-        }
-        
-        .experience-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        h3 {
-            color: var(--dark-color);
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-        }
-        
-        .job-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-        
-        .job-title h3 {
-            margin-right: 15px;
-        }
-        
-        .company-date {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            color: var(--text-light);
-            font-weight: 500;
-        }
-        
-        .company {
-            font-weight: 600;
-            color: var(--secondary-color);
-        }
-        
-        .experience-item ul {
-            padding-left: 20px;
-            margin-bottom: 10px;
-        }
-        
-        .experience-item ul li {
-            margin-bottom: 8px;
-        }
-        
-        .contact-person {
-            font-style: italic;
-            color: var(--text-light);
-        }
-        
-        .skills-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 30px;
-            margin-top: 30px;
-        }
-        
-        .skill-category {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            transition: transform 0.3s;
-        }
-        
-        .skill-category:hover {
-            transform: translateY(-5px);
-        }
-        
-        .skill-category h3 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: var(--secondary-color);
-        }
-        
-        .skill-category ul {
-            list-style: none;
-        }
-        
-        .skill-category ul li {
-            padding: 5px 0;
-            position: relative;
-            padding-left: 15px;
-        }
-        
-        .skill-category ul li::before {
-            content: "•";
-            color: var(--secondary-color);
-            font-weight: bold;
-            display: inline-block;
-            width: 15px;
-            margin-left: -15px;
-        }
-        
-        .education-item {
-            margin-bottom: 25px;
-        }
-        
-        .education-item h3 {
-            font-size: 1.3rem;
-        }
-        
-        .education-info {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-light);
-            margin-bottom: 5px;
-        }
-        
-        .school {
-            font-weight: 500;
-        }
-        
-        .projects-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 30px;
-        }
-        
-        .project-card {
-            background-color: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-        
-        .project-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .project-content {
-            padding: 20px;
-        }
-        
-        .project-title {
-            font-size: 1.3rem;
-            margin-bottom: 10px;
-            color: var(--dark-color);
-        }
-        
-        .languages-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-        }
-        
-        .language-item {
-            background-color: white;
-            padding: 15px 25px;
-            border-radius: 30px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .language-name {
-            font-weight: 600;
-        }
-        
-        .language-level {
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        
-        footer {
-            background-color: var(--primary-color);
-            color: white;
-            text-align: center;
-            padding: 30px 0;
-        }
-        
-        .footer-text {
-            margin-bottom: 15px;
-        }
-        
-        .social-links {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        .social-links a {
-            color: white;
-            font-size: 1.5rem;
-            transition: color 0.3s;
-        }
-        
-        .social-links a:hover {
-            color: var(--secondary-color);
-        }
-        
-        .download-cv {
-            display: inline-block;
-            margin-top: 20px;
-            background-color: var(--secondary-color);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: background-color 0.3s;
-        }
-        
-        .download-cv:hover {
-            background-color: #2980b9;
-        }
+  --primary-color: #34495e; /* A slightly more approachable dark blue */
+  --secondary-color: #5dade2; /* A brighter, more energetic blue */
+  --accent-color: #f39c12; /* A warm, inviting orange/gold */
+  --light-color: #f5f5f5;
+  --dark-color: #2c3e50;
+  --text-color: #333;
+  --text-light: #777; /* Slightly darker for better readability */
+}
 
-               
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .subtitle {
-                font-size: 1rem;
-            }
-            
-            .nav-container a {
-                padding: 10px 15px;
-                font-size: 0.9rem;
-            }
-            
-            section {
-                padding: 40px 0;
-            }
-            
-            h2 {
-                font-size: 1.6rem;
-            }
-            
-            h3 {
-                font-size: 1.3rem;
-            }
-            
-            .job-title, .company-date {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .job-title h3 {
-                margin-bottom: 5px;
-            }
-            
-            .company-date {
-                gap: 5px;
-            }
-        }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Montserrat', sans-serif; /* A modern and professional sans-serif */
+  scroll-behavior: smooth; /* For smoother transitions when clicking nav links */
+}
+
+body {
+  color: var(--text-color);
+  background-color: var(--light-color); /* Softer background */
+  line-height: 1.7; /* Slightly increased line height for better readability */
+}
+
+.container {
+  max-width: 1100px; /* Slightly wider for more content breathing room */
+  margin: 0 auto;
+  padding: 0 30px; /* Increased horizontal padding */
+}
+
+header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 100px 0 60px; /* Adjust padding for better visual balance */
+  position: relative;
+  /* Add a subtle gradient for visual interest */
+  background: linear-gradient(135deg, var(--primary-color) 0%, #2c3e50 100%);
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-pic {
+  width: 160px; /* Slightly larger */
+  height: 160px; /* Slightly larger */
+  border-radius: 50%;
+  border: 6px solid white; /* Thicker border */
+  margin-bottom: 25px;
+  background-color: var(--secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 65px;
+  color: white;
+  background-image: url('photos/Martin.jpg');
+  background-size: cover;
+  background-position: center;
+  /* Add a subtle shadow for depth */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease-in-out; /* Add a subtle hover effect */
+}
+
+.profile-pic:hover {
+  transform: scale(1.05);
+}
+
+h1 {
+  font-size: 2.8rem; /* Slightly larger */
+  margin-bottom: 15px;
+  letter-spacing: -0.5px; /* Improve typography */
+}
+
+.subtitle {
+  font-size: 1.3rem; /* Slightly larger */
+  font-weight: 400;
+  margin-bottom: 25px;
+  color: var(--text-light);
+}
+
+.contact-info {
+  margin: 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px; /* Slightly larger gap */
+}
+
+.contact-info a {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Slightly larger gap */
+  transition: color 0.3s ease-in-out; /* Smoother transition */
+}
+
+.contact-info a:hover {
+  color: var(--accent-color); /* Use the accent color for hover */
+}
+
+.resume-nav {
+  background-color: white;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15); /* Slightly stronger shadow */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.nav-container a {
+  padding: 18px 25px; /* Slightly more padding */
+  text-decoration: none;
+  color: var(--primary-color);
+  font-weight: 500;
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out; /* Smoother transitions */
+}
+
+.nav-container a:hover {
+  background-color: var(--light-color);
+  color: var(--accent-color); /* Use accent color on hover */
+}
+
+.nav-container a.active {
+  color: var(--accent-color);
+  border-bottom: 4px solid var(--accent-color); /* Use accent color for active state */
+}
+
+section {
+  padding: 70px 0; /* Increased vertical padding */
+}
+
+section:nth-child(even) {
+  background-color: #f9f9f9; /* Slightly warmer off-white */
+}
+
+h2 {
+  font-size: 2.4rem; /* Slightly larger */
+  margin-bottom: 35px;
+  color: var(--primary-color);
+  text-align: center;
+  position: relative;
+}
+
+h2::after {
+  content: '';
+  display: block;
+  width: 70px; /* Slightly wider */
+  height: 5px; /* Slightly thicker */
+  background-color: var(--accent-color); /* Use accent color for the underline */
+  margin: 12px auto 0; /* Adjust margin */
+  border-radius: 2px; /* Add slight rounding */
+}
+
+.summary {
+  max-width: 900px; /* Slightly wider */
+  margin: 0 auto;
+  text-align: center;
+  font-size: 1.15rem; /* Slightly larger */
+  color: var(--text-light);
+}
+
+.experience-item {
+  margin-bottom: 50px; /* Increased spacing */
+  position: relative;
+  padding-left: 30px; /* Add some left padding for the bullet points */
+}
+
+.experience-item:last-child {
+  margin-bottom: 0;
+}
+
+.experience-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px; /* Adjust vertical position */
+  width: 15px;
+  height: 15px;
+  background-color: var(--secondary-color);
+  border-radius: 50%;
+  border: 3px solid var(--light-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h3 {
+  color: var(--dark-color);
+  font-size: 1.6rem; /* Slightly larger */
+  margin-bottom: 8px;
+}
+
+.job-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.job-title h3 {
+  margin-right: 20px;
+}
+
+.company-date {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  color: var(--text-light);
+  font-weight: 500;
+  font-style: italic; /* Slightly more subtle italic */
+}
+
+.company {
+  font-weight: 700; /* Stronger emphasis */
+  color: var(--secondary-color);
+}
+
+.experience-item ul {
+  padding-left: 25px;
+  margin-bottom: 12px;
+  list-style-type: disc; /* Use standard disc bullets */
+}
+
+.experience-item ul li {
+  margin-bottom: 10px;
+  color: var(--text-color);
+}
+
+.contact-person {
+  font-style: italic;
+  color: var(--text-light);
+}
+
+.skills-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Slightly wider min-width */
+  gap: 35px; /* Increased gap */
+  margin-top: 40px; /* Increased margin */
+}
+
+.skill-category {
+  background-color: white;
+  border-radius: 10px; /* More rounded corners */
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12); /* Slightly stronger shadow */
+  padding: 25px; /* Increased padding */
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out; /* Add box-shadow transition */
+  border-left: 5px solid var(--secondary-color); /* Add a subtle colored border */
+}
+
+.skill-category:hover {
+  transform: translateY(-8px); /* More pronounced hover effect */
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
+}
+
+.skill-category h3 {
+  font-size: 1.3rem; /* Slightly larger */
+  margin-bottom: 18px;
+  color: var(--secondary-color);
+}
+
+.skill-category ul {
+  list-style: none;
+}
+
+.skill-category ul li {
+  padding: 6px 0;
+  position: relative;
+  padding-left: 20px; /* Adjust padding for the custom bullet */
+}
+
+.skill-category ul li::before {
+  content: "✓"; /* Use a checkmark for a more positive feel */
+  color: var(--accent-color); /* Use accent color for the checkmark */
+  font-weight: bold;
+  display: inline-block;
+  width: 20px; /* Adjust width */
+  margin-left: -20px; /* Adjust margin */
+}
+
+.skill-level-bar {
+    background-color: var(--accent-color); /* Background for the empty part */
+    display: inline-block;
+    height: 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    vertical-align: middle;
+    width: 100px; /* Initial width, will be updated by JS */
+    position: relative; /* To position the fill element */
+    overflow: hidden; /* Crucial to contain the filled part */
+}
+
+.skill-fill {
+    background-color: var(--accent-color);
+    height: 100%;
+    border-radius: 4px;
+    width: 0%; /* Initial width */
+    transition: width 0.8s ease-out;
+}
+
+.education-item {
+  margin-bottom: 30px; /* Increased spacing */
+  padding-left: 25px; /* Add left padding for visual alignment */
+  position: relative;
+}
+
+.education-item::before {
+  content: '🎓'; /* Add a subtle icon */
+  position: absolute;
+  left: 0;
+  top: 2px; /* Adjust vertical position */
+  font-size: 1.2rem;
+  color: var(--secondary-color);
+}
+
+.education-item h3 {
+  font-size: 1.4rem; /* Slightly larger */
+}
+
+.education-info {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+.school {
+  font-weight: 600; /* Stronger emphasis */
+}
+
+.projects-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Slightly wider min-width */
+  gap: 35px; /* Increased gap */
+}
+
+.project-card {
+  background-color: white;
+  border-radius: 10px; /* More rounded corners */
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); /* Slightly stronger shadow */
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out; /* Add box-shadow transition */
+}
+
+.project-card:hover {
+  transform: translateY(-8px); /* More pronounced hover effect */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18); /* Stronger shadow on hover */
+}
+
+.project-image {
+  width: 100%;
+  display: block; /* Prevent extra space below image */
+  /* You might want to add a subtle grayscale to color transition on hover for visual interest */
+  transition: filter 0.3s ease-in-out;
+}
+
+.project-card:hover .project-image {
+  filter: grayscale(80%);
+}
+
+.project-content {
+  padding: 25px; /* Increased padding */
+}
+
+.project-title {
+  font-size: 1.4rem; /* Slightly larger */
+  margin-bottom: 12px;
+  color: var(--dark-color);
+}
+
+.project-description {
+  color: var(--text-light);
+  margin-bottom: 15px;
+}
+
+.project-links {
+  display: flex;
+  gap: 10px;
+}
+
+.project-links a {
+  text-decoration: none;
+  color: var(--secondary-color);
+  font-weight: 500;
+  transition: color 0.3s ease-in-out;
+}
+
+.project-links a:hover {
+  color: var(--accent-color);
+}
+
+.languages-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px; /* Increased gap */
+  justify-content: center;
+  margin-top: 30px; /* Add some top margin */
+}
+
+.language-item {
+  background-color: white;
+  padding: 18px 30px; /* Increased padding */
+  border-radius: 35px; /* More rounded */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Increased gap */
+  border: 1px solid #eee; /* Add a subtle border */
+}
+
+.language-icon {
+  font-size: 1.2rem; /* Add icons if you have them, e.g., using a font library */
+  color: var(--secondary-color);
+}
+
+.language-name {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.language-level {
+  color: var(--text-light);
+  font-size: 0.95rem; /* Slightly larger */
+}
+
+footer {
+  background-color: var(--primary-color);
+  color: white;
+  text-align: center;
+  padding: 40px 0; /* Increased padding */
+}
+
+.footer-text {
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 20px; /* Increased gap */
+}
+
+.social-links a {
+  color: white;
+  font-size: 1.7rem; /* Slightly larger */
+  transition: color 0.3s ease-in-out;
+}
+
+.social-links a:hover {
+  color: var(--accent-color);
+}
+
+.download-cv {
+  display: inline-block;
+  margin-top: 25px;
+  background-color: var(--accent-color); /* Use accent color for the button */
+  color: white;
+  padding: 12px 25px; /* Adjust padding */
+  border-radius: 6px; /* Slightly more rounded */
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s ease-in-out, transform 0.3s ease-in-out; /* Add transform transition */
+}
+
+.download-cv:hover {
+  background-color: #e68a00; /* Darker shade on hover */
+  transform: translateY(-2px); /* Subtle lift on hover */
+}
+
+
+/* Media Queries */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2.4rem;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+  }
+
+  .nav-container a {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+  }
+
+  section {
+    padding: 50px 0;
+  }
+
+  h2 {
+    font-size: 2rem;
+    margin-bottom: 25px;
+  }
+
+  h2::after {
+    width: 50px;
+    height: 4px;
+  }}
