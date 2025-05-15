@@ -53,6 +53,9 @@
             justify-content: center;
             font-size: 60px;
             color: white;
+            background-image: url('photos/Martin.jpg');
+            background-size: cover;
+            background-position: center;
         }
         
         h1 {
