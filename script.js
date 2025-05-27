@@ -117,3 +117,19 @@ document.addEventListener('DOMContentLoaded', function() {
         fillElement.style.width = '0%'; // Initialize width to 0 for animation
     });
 });
+
+// Add subtle animation to .experience-item on hover
+document.addEventListener('DOMContentLoaded', function() {
+    const experienceItems = document.querySelectorAll('.experience-item');
+    experienceItems.forEach(item => {
+        item.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1)';
+        item.addEventListener('mouseenter', function() {
+            item.style.transform = 'translateY(-6px) scale(1.02)';
+            item.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+        });
+        item.addEventListener('mouseleave', function() {
+            item.style.transform = '';
+            item.style.boxShadow = '';
+        });
+    });
+});
