@@ -78,7 +78,7 @@ h1 {
   font-size: 1.3rem; /* Slightly larger */
   font-weight: 400;
   margin-bottom: 25px;
-  color: var(--text-light);
+  color: var(--secondary-color);
 }
 
 .contact-info {
