@@ -271,6 +271,25 @@ body {
   transition: width 0.9s ease-out;
 }
 
+.page-portfolio .education-item {
+  margin-bottom: 40px;
+}
+
+.page-portfolio .education-item:last-child {
+  margin-bottom: 0;
+}
+
+.page-portfolio .education-item h3 {
+  font-size: 1.6rem;
+}
+
+.page-portfolio .education-info {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  font-style: italic;}
+  
 .page-portfolio .projects-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
