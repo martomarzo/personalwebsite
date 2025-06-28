@@ -3,26 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Personal portfolio of Martín Marzorati, a Project Manager with technical expertise in software development and digital media.">
     <title>Martín Marzorati - Project Manager</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="icon" href="/photos/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
 </head>
-<body>
+<body class="page-portfolio"> 
     <header id="home">
         <div class="container header-content">
-            <figure class="profile-pic"></figure>
+            <div class="profile-pic"></div>
             <h1>Martín Marzorati</h1>
             <p class="subtitle">Project Manager with Technical Expertise</p>
             <div class="contact-info">
-                <a href="mailto:martin.e.marzorati@gmail.com"><i class="fas fa-envelope"></i> martin.e.marzorati@gmail.com</a>
-                <a href="tel:+4915128314926"><i class="fas fa-phone"></i> +4915128314926</a>
+                <a href="mailto:martin.e.marzorati@gmail.com">
+                    <i class="fas fa-envelope"></i> martin.e.marzorati@gmail.com
+                </a>
+                <a href="tel:+4915128314926">
+                    <i class="fas fa-phone"></i> +4915128314926
+                </a>
             </div>
         </div>
     </header>
 
-    <nav class="resume-nav" aria-label="Main Navigation">
+    <nav class="resume-nav">
         <div class="container nav-container">
             <a href="#home" class="active">Home</a>
             <a href="#about">About</a>
@@ -34,228 +37,236 @@
         </div>
     </nav>
 
-    <main>
-        <section id="about">
-            <div class="container">
-                <h2>Professional Summary</h2>
-                <p class="summary">
-                    Detail-oriented Project Manager with 7+ years of experience leading cross-functional teams in digital media and tech environments. 
-                    Combines strong technical background in software development with exceptional leadership skills. 
-                    Proficient in multiple programming languages and experienced in maintaining server infrastructure. 
-                    Skilled at optimizing workflows and delivering complex projects on time and within budget.
-                </p>
-            </div>
-        </section>
+    <section id="about">
+        <div class="container">
+            <h2>Professional Summary</h2>
+            <p class="summary">
+                Detail-oriented Project Manager with 7+ years of experience leading cross-functional teams in digital media and tech environments. 
+                Combines strong technical background in software development with exceptional leadership skills. 
+                Proficient in multiple programming languages and experienced in maintaining server infrastructure. 
+                Skilled at optimizing workflows and delivering complex projects on time and within budget.
+            </p>
+        </div>
+    </section>
 
-        <section id="experience">
-            <div class="container">
-                <h2>Professional Experience</h2>
-                
-                <div class="experience-item">
-                    <div class="job-title">
-                        <h3>Operations Manager</h3>
-                    </div>
-                    <div class="company-date">
-                        <span class="company">Stink Studios</span>
-                        <span class="date">07/2022 - 02/2025</span>
-                    </div>
-                    <p class="location">Buenos Aires/Remote</p>
+    <section id="experience">
+        <div class="container">
+            <h2>Professional Experience</h2>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Operations Manager</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Stink Studios</span>
+                    <span class="date">07/2022 - 02/2025</span>
+                </div>
+                <p class="location">Buenos Aires/Remote</p>
+                <ul>
+                    <li>Lead and coordinate cross-functional teams across Buenos Aires office, improving project delivery rates by 15%</li>
+                    <li>Develop and implement standardized workflows between Production and Creative departments, reducing delivery times by 20%</li>
+                    <li>Establish technical requirements and specifications for client projects, ensuring alignment with business objectives</li>
+                    <li>Manage resource allocation across multiple simultaneous projects, maintaining a 95% on-time delivery rate</li>
+                    <li>Facilitate communication between technical and non-technical stakeholders to ensure project requirements are met</li>
+                </ul>
+                <p class="contact-person">Contact: Ivan Faerman (ivan@stinkstudios.com)</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Producer</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Draftline Buenos Aires</span>
+                    <span class="date">03/2021 - 07/2022</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Coordinated end-to-end production for 360° campaigns across multiple brands (Corona, Stella Artois)</li>
+                    <li>Managed budgets exceeding $500K while meeting all project deadlines and quality benchmarks</li>
+                    <li>Supervised external suppliers for product shooting, negotiating favorable terms that reduced costs by 12%</li>
+                    <li>Implemented technical solutions to streamline content approval processes, reducing feedback cycles by 30%</li>
+                    <li>Collaborated with development teams to integrate campaign materials with digital platforms</li>
+                </ul>
+                <p class="contact-person">Contact: Sebastian Torrela (sebastor@quilmes.com.ar)</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Senior Producer / Product Manager</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">dift.co</span>
+                    <span class="date">09/2018 - 03/2021</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Served as Product Manager for major brands including Netflix, XPL, and Filo.news</li>
+                    <li>Designed and implemented technical workflows for the Filo.news content team, increasing output by 35%</li>
+                    <li>Led development team in creating custom content management solutions for digital publishing</li>
+                    <li>Coordinated teams for creation and distribution of audiovisual content, managing entire production pipeline</li>
+                    <li>Applied coding knowledge to develop automation scripts that reduced post-production time by 25%</li>
+                </ul>
+                <p class="contact-person">Contact: Ivan Faerman</p>
+            </div>
+            
+            <div class="experience-item">
+                <div class="job-title">
+                    <h3>Post-Production Specialist</h3>
+                </div>
+                <div class="company-date">
+                    <span class="company">Cinequanon</span>
+                    <span class="date">10/2011 - 03/2016</span>
+                </div>
+                <p class="location">Buenos Aires, Argentina</p>
+                <ul>
+                    <li>Supervised VFX production on commercial shoots, ensuring technical specifications were met</li>
+                    <li>Created motion graphics and animations using After Effects for national advertising campaigns</li>
+                    <li>Developed custom scripts and macros to automate repetitive post-production tasks</li>
+                    <li>Collaborated with directors to implement technical solutions for complex visual requirements</li>
+                </ul>
+                <p class="contact-person">Contact: Sebastian Vega (sebastian@cinequanon.com.ar)</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="skills">
+        <div class="container">
+            <h2>Technical Skills & Expertise</h2>
+            <div class="skills-container">
+                <div class="skill-category">
+                    <h3>Programming</h3>
                     <ul>
-                        <li>Lead and coordinate cross-functional teams across Buenos Aires office, improving project delivery rates by 15%</li>
-                        <li>Develop and implement standardized workflows between Production and Creative departments, reducing delivery times by 20%</li>
-                        <li>Establish technical requirements and specifications for client projects, ensuring alignment with business objectives</li>
-                        <li>Manage resource allocation across multiple simultaneous projects, maintaining a 95% on-time delivery rate</li>
-                        <li>Facilitate communication between technical and non-technical stakeholders to ensure project requirements are met</li>
+                        <li>
+                            <span class="skill-name">JavaScript</span>
+                            <span class="skill-level-bar"><span class="skill-fill" data-level="80"></span></span>
+                        </li>
+                        <li>
+                            <span class="skill-name">Python</span>
+                            <span class="skill-level-bar"><span class="skill-fill" data-level="70"></span></span>
+                        </li>
+                        <li>
+                            <span class="skill-name">HTML/CSS</span>
+                            <span class="skill-level-bar"><span class="skill-fill" data-level="90"></span></span>
+                        </li>
                     </ul>
-                    <p class="contact-person">Contact: Ivan Faerman (ivan@stinkstudios.com)</p>
                 </div>
-                
-                <div class="experience-item">
-                    <div class="job-title">
-                        <h3>Producer</h3>
-                    </div>
-                    <div class="company-date">
-                        <span class="company">Draftline Buenos Aires</span>
-                        <span class="date">03/2021 - 07/2022</span>
-                    </div>
-                    <p class="location">Buenos Aires, Argentina</p>
+                <div class="skill-category">
+                    <h3>Design Software</h3>
                     <ul>
-                        <li>Coordinated end-to-end production for 360° campaigns across multiple brands (Corona, Stella Artois)</li>
-                        <li>Managed budgets exceeding $500K while meeting all project deadlines and quality benchmarks</li>
-                        <li>Supervised external suppliers for product shooting, negotiating favorable terms that reduced costs by 12%</li>
-                        <li>Implemented technical solutions to streamline content approval processes, reducing feedback cycles by 30%</li>
-                        <li>Collaborated with development teams to integrate campaign materials with digital platforms</li>
+                        <li>Adobe Premiere Pro</li>
+                        <li>After Effects</li>
+                        <li>Photoshop</li>
                     </ul>
-                    <p class="contact-person">Contact: Sebastian Torrela (sebastor@quilmes.com.ar)</p>
                 </div>
-                
-                <div class="experience-item">
-                    <div class="job-title">
-                        <h3>Senior Producer / Product Manager</h3>
-                    </div>
-                    <div class="company-date">
-                        <span class="company">dift.co</span>
-                        <span class="date">09/2018 - 03/2021</span>
-                    </div>
-                    <p class="location">Buenos Aires, Argentina</p>
+                <div class="skill-category">
+                    <h3>Infrastructure</h3>
                     <ul>
-                        <li>Served as Product Manager for major brands including Netflix, XPL, and Filo.news</li>
-                        <li>Designed and implemented technical workflows for the Filo.news content team, increasing output by 35%</li>
-                        <li>Led development team in creating custom content management solutions for digital publishing</li>
-                        <li>Coordinated teams for creation and distribution of audiovisual content, managing entire production pipeline</li>
-                        <li>Applied coding knowledge to develop automation scripts that reduced post-production time by 25%</li>
+                        <li>Home server administration</li>
+                        <li>Network configuration</li>
+                        <li>Linux environment</li>
                     </ul>
-                    <p class="contact-person">Contact: Ivan Faerman</p>
                 </div>
-                
-                <div class="experience-item">
-                    <div class="job-title">
-                        <h3>Post-Production Specialist</h3>
-                    </div>
-                    <div class="company-date">
-                        <span class="company">Cinequanon</span>
-                        <span class="date">10/2011 - 03/2016</span>
-                    </div>
-                    <p class="location">Buenos Aires, Argentina</p>
+                <div class="skill-category">
+                    <h3>Project Management</h3>
                     <ul>
-                        <li>Supervised VFX production on commercial shoots, ensuring technical specifications were met</li>
-                        <li>Created motion graphics and animations using After Effects for national advertising campaigns</li>
-                        <li>Developed custom scripts and macros to automate repetitive post-production tasks</li>
-                        <li>Collaborated with directors to implement technical solutions for complex visual requirements</li>
+                        <li>Resource allocation</li>
+                        <li>Budget management</li>
+                        <li>Timeline development</li>
+                        <li>Risk mitigation</li>
                     </ul>
-                    <p class="contact-person">Contact: Sebastian Vega (sebastian@cinequanon.com.ar)</p>
+                </div>
+                <div class="skill-category">
+                    <h3>Methodologies</h3>
+                    <ul>
+                        <li>Agile</li>
+                        <li>Scrum</li>
+                        <li>Waterfall</li>
+                    </ul>
+                </div>
+                <div class="skill-category">
+                    <h3>Soft Skills</h3>
+                    <ul>
+                        <li>Team leadership</li>
+                        <li>Cross-functional communication</li>
+                        <li>Conflict resolution</li>
+                        <li>Problem-solving</li>
+                    </ul>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section id="skills">
-            <div class="container">
-                <h2>Technical Skills & Expertise</h2>
-                <div class="skills-container">
-                    <div class="skill-category">
-                        <h3>Programming</h3>
-                        <ul>
-                            <li>JavaScript <span class="skill-level-bar"><span class="skill-fill" data-level="80"></span></span></li>
-                            <li>Python <span class="skill-level-bar"><span class="skill-fill" data-level="70"></span></span></li>
-                            <li>HTML/CSS <span class="skill-level-bar"><span class="skill-fill" data-level="90"></span></span></li>
-                        </ul>
+    <section id="projects">
+        <div class="container">
+            <h2>Personal Projects</h2>
+            <div class="projects-container">
+                <div class="project-card">
+                    <div class="project-content">
+                        <h3 class="project-title">Home Server Infrastructure</h3>
+                        <p>Design, implementation, and ongoing maintenance of personal home server using Proxmox VE hypervisor. Deployed multiple services through Virtual Machines and LXC containers. This project demonstrates practical knowledge of virtualization, containerization, networking, and system administration.</p>
+                        <a href="server-info.html" class="btn">More Info</a>
                     </div>
-                    <div class="skill-category">
-                        <h3>Design Software</h3>
-                        <ul>
-                            <li>Adobe Premiere Pro</li>
-                            <li>After Effects</li>
-                            <li>Photoshop</li>
-                        </ul>
-                    </div>
-                    <div class="skill-category">
-                        <h3>Infrastructure</h3>
-                        <ul>
-                            <li>Home server administration</li>
-                            <li>Network configuration</li>
-                            <li>Linux environment</li>
-                        </ul>
-                    </div>
-                    <div class="skill-category">
-                        <h3>Project Management</h3>
-                        <ul>
-                            <li>Resource allocation</li>
-                            <li>Budget management</li>
-                            <li>Timeline development</li>
-                            <li>Risk mitigation</li>
-                        </ul>
-                    </div>
-                    <div class="skill-category">
-                        <h3>Methodologies</h3>
-                        <ul>
-                            <li>Agile</li>
-                            <li>Scrum</li>
-                            <li>Waterfall</li>
-                        </ul>
-                    </div>
-                    <div class="skill-category">
-                        <h3>Soft Skills</h3>
-                        <ul>
-                            <li>Team leadership</li>
-                            <li>Cross-functional communication</li>
-                            <li>Conflict resolution</li>
-                            <li>Problem-solving</li>
-                        </ul>
+                </div>
+                <div class="project-card">
+                    <div class="project-content">
+                        <h3 class="project-title">Automation Scripts</h3>
+                        <p>Development of custom tools for workflow optimization in media production environments. Created Python and JavaScript scripts to automate repetitive tasks, improving efficiency and reducing manual errors.</p>
+                        
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section id="projects">
-            <div class="container">
-                <h2>Personal Projects</h2>
-                <div class="projects-container">
-                    <div class="project-card">
-                        <div class="project-content">
-                            <h3 class="project-title">Home Server Infrastructure</h3>
-                            <p>Design, implementation, and ongoing maintenance of personal home server using Proxmox VE hypervisor. Deployed multiple services through Virtual Machines and LXC containers. This project demonstrates practical knowledge of virtualization, containerization, networking, and system administration.</p>
-                            <a href="server-info.html">More Info</a>
-                        </div>
-                    </div>
-                    <div class="project-card">
-                        <div class="project-content">
-                            <h3 class="project-title">Automation Scripts</h3>
-                            <p>Development of custom tools for workflow optimization in media production environments. Created Python and JavaScript scripts to automate repetitive tasks, improving efficiency and reducing manual errors.</p>
-                        </div>
-                    </div>
+    <section id="education">
+        <div class="container">
+            <h2>Education</h2>
+            
+            <div class="education-item">
+                <h3>Tech Developer Program</h3>
+                <div class="education-info">
+                    <span class="school">Digital House</span>
+                    <span class="date">03/2021 - 10/2023</span>
                 </div>
             </div>
-        </section>
+            
+            <div class="education-item">
+                <h3>Bachelor's Degree in Radio and TV Production and Direction</h3>
+                <div class="education-info">
+                    <span class="school">Universidad de Belgrano</span>
+                    <span class="date">03/2008 - 12/2012</span>
+                </div>
+            </div>
+        </div>
+    </section>
 
-        <section id="education">
-            <div class="container">
-                <h2>Education</h2>
-                
-                <div class="education-item">
-                    <h3>Tech Developer Program</h3>
-                    <div class="education-info">
-                        <span class="school">Digital House</span>
-                        <span class="date">03/2021 - 10/2023</span>
-                    </div>
+    <section id="languages">
+        <div class="container">
+            <h2>Languages</h2>
+            <div class="languages-container">
+                <div class="language-item">
+                    <span class="language-name">Spanish</span>
+                    <span class="language-level">(Native)</span>
+                </div>
+                <div class="language-item">
+                    <span class="language-name">English</span>
+                    <span class="language-level">(Fluent)</span>
                 </div>
                 
-                <div class="education-item">
-                    <h3>Bachelor's Degree in Radio and TV Production and Direction</h3>
-                    <div class="education-info">
-                        <span class="school">Universidad de Belgrano</span>
-                        <span class="date">03/2008 - 12/2012</span>
-                    </div>
-                </div>
             </div>
-        </section>
-
-        <section id="languages">
-            <div class="container">
-                <h2>Languages</h2>
-                <div class="languages-container">
-                    <div class="language-item">
-                        <span class="language-name">Spanish</span>
-                        <span class="language-level">(Native)</span>
-                    </div>
-                    <div class="language-item">
-                        <span class="language-name">English</span>
-                        <span class="language-level">(Fluent)</span>
-                    </div>
-                    
-                </div>
-            </div>
-        </section>
-    </main>
+        </div>
+    </section>
 
     <footer>
         <div class="container">
             <p class="footer-text">© 2025 Martín Marzorati. All rights reserved.</p>
             <div class="social-links">
-                <a href="https://linkedin.com/in/martinmarzorati" target="_blank" rel="noopener" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-                <a href="https://github.com/martomarzo" target="_blank" rel="noopener" aria-label="GitHub"><i class="fab fa-github"></i></a>
-                <a href="https://www.instagram.com/martomarzo/" target="_blank" rel="noopener" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="https://linkedin.com/in/martinmarzorati" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i></a>
+                <a href="https://github.com/martomarzo" target="_blank" rel="noopener"><i class="fab fa-github"></i></a>
+                <a href="https://www.instagram.com/martomarzo/" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
             </div>
-            <a href="files/Martin Project Manager Resume.pdf" class="download-cv" download>Download CV</a>
+            <a href="files/Martin Project Manager Resume.pdf" class="download-cv">Download CV</a>
         </div>
     </footer>
 

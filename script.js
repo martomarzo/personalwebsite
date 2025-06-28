@@ -104,19 +104,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initSkillBarsAnimation() {
             const skillBars = document.querySelectorAll('.skill-level-bar');
+
+            // Set up the observer to watch for when skill bars enter the viewport
             const observer = new IntersectionObserver(entries => {
                 entries.forEach(entry => {
+                    // When a bar is 50% visible...
                     if (entry.isIntersecting) {
                         const fillElement = entry.target.querySelector('.skill-fill');
                         const level = fillElement.getAttribute('data-level');
+                        
+                        // ...set the width to trigger the CSS transition
                         fillElement.style.width = `${level}%`;
+                        
+                        // Stop watching this bar to prevent re-triggering
                         observer.unobserve(entry.target);
                     }
                 });
             }, {
+                // Trigger when 50% of the item is visible
                 threshold: 0.5
             });
 
+            // Tell the observer to watch each skill bar
             skillBars.forEach(bar => {
                 observer.observe(bar);
             });
