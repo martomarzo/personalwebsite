@@ -5,157 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home Server Documentation</title>
     <link rel="stylesheet" href="server-styles.css">
-    <script src="script.js"></script>
-    
+    <script src="script.js" defer></script>
 </head>
 <body>
     <div class="container">
-        <h1>🏠 Home Server Documentation</h1>
-        
-        <div class="info-box">
-            <strong>Document Updated:</strong> <span id="currentDate"></span><br>
-            <strong>Purpose:</strong> Design, implementation, and ongoing maintenance of personal home server using Proxmox VE hypervisor on laptop hardware (Intel i7-7500U, 16GB RAM, 1TB SSD). Deployed multiple services through Virtual Machines and LXC containers including Home Assistant OS for home automation, Docker containerization with Karakeep for bookmark management, Pi-hole for network-wide ad blocking, Homepage dashboard for centralized service access, Beszel for system monitoring, and Ntfy for server notifications. Secured remote access implemented via Tailscale. This project demonstrates practical knowledge of virtualization, containerization, networking, and system administration.
-        </div>
+        <header>
+            <h1><i class="fas fa-server"></i> Home Server Documentation</h1>
+            <p class="last-updated-container">Last Updated: <span class="last-updated"></span></p>
+        </header>
 
-        <h2>🖥️ Hardware Overview</h2>
-        <div class="service-item hardware-spec">
-            <div class="service-name">Primary Hardware</div>
-            <div class="service-description">
-                <strong>Type:</strong> Laptop running Proxmox Virtual Environment (VE)<br>
-                <strong>CPU:</strong> Intel(R) Core(TM) i7-7500U @ 2.70GHz<br>
-                <strong>Cores:</strong> 4 CPU cores<br>
-                <strong>Memory:</strong> 16GB RAM<br>
-                <strong>Storage:</strong> 1TB SSD<br>
-                <strong>Architecture:</strong> x86_64 (64-bit)
-            </div>
-        </div>
+        <main>
+            <section id="overview">
+                <h2><i class="fas fa-info-circle"></i> Overview</h2>
+                <div class="info-box">
+                    <p>This document outlines the design, implementation, and ongoing maintenance of a personal home server. The server is built on laptop hardware and utilizes Proxmox VE for virtualization. It hosts various services in Virtual Machines (VMs) and LXC containers, demonstrating practical knowledge of virtualization, containerization, networking, and system administration.</p>
+                </div>
+            </section>
 
-        <h2>🔧 Virtualization Platform</h2>
-        <div class="service-item">
-            <div class="service-name">Proxmox VE</div>
-            <div class="service-description">Hypervisor managing all virtual machines and containers</div>
-        </div>
+            <section id="hardware">
+                <h2><i class="fas fa-desktop"></i> Hardware</h2>
+                <div class="service-item hardware-spec">
+                    <h3>Primary Hardware</h3>
+                    <ul>
+                        <li><strong>Type:</strong> Laptop running Proxmox VE</li>
+                        <li><strong>CPU:</strong> Intel(R) Core(TM) i7-7500U @ 2.70GHz</li>
+                        <li><strong>Cores:</strong> 4</li>
+                        <li><strong>Memory:</strong> 16GB RAM</li>
+                        <li><strong>Storage:</strong> 1TB SSD</li>
+                    </ul>
+                </div>
+            </section>
 
-        <h2>💻 Virtual Machines</h2>
-        
-        <div class="service-item">
-            <div class="service-name">Home Assistant OS VM</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> Home automation platform<br>
-                <strong>Type:</strong> Dedicated Virtual Machine<br>
-                <strong>Function:</strong> Controls and monitors smart home devices
-            </div>
-        </div>
+            <section id="virtualization">
+                <h2><i class="fas fa-cogs"></i> Virtualization Platform</h2>
+                <div class="service-item">
+                    <h3>Proxmox VE</h3>
+                    <p>Hypervisor managing all virtual machines and containers.</p>
+                </div>
+            </section>
 
-        <div class="service-item">
-            <div class="service-name">Docker VM</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> Container host for applications and testing<br>
-                <strong>Type:</strong> Virtual Machine<br>
-                <strong>Main Services:</strong> Karakeep (centralized bookmark management)<br>
-                <strong>Additional Use:</strong> Development and testing environment
-            </div>
-        </div>
+            <section id="vms">
+                <h2><i class="fas fa-window-maximize"></i> Virtual Machines</h2>
+                <div class="service-item">
+                    <h3>Home Assistant OS VM</h3>
+                    <p><strong>Purpose:</strong> Home automation platform</p>
+                </div>
+                <div class="service-item">
+                    <h3>Docker VM</h3>
+                    <p><strong>Purpose:</strong> Container host for applications and testing (e.g., Karakeep for bookmark management)</p>
+                </div>
+            </section>
 
-        <h2>📦 LXC Containers</h2>
+            <section id="containers">
+                <h2><i class="fab fa-docker"></i> LXC Containers</h2>
+                <div class="service-item">
+                    <h3>Beszel</h3>
+                    <p><strong>Purpose:</strong> System monitoring and metrics collection</p>
+                </div>
+                <div class="service-item">
+                    <h3>Homepage</h3>
+                    <p><strong>Purpose:</strong> Centralized dashboard for all services</p>
+                </div>
+                <div class="service-item">
+                    <h3>Pi-hole</h3>
+                    <p><strong>Purpose:</strong> Network-wide ad blocking</p>
+                </div>
+                <div class="service-item">
+                    <h3>Ntfy</h3>
+                    <p><strong>Purpose:</strong> Notification service for server status and alerts</p>
+                </div>
+            </section>
 
-        <div class="service-item">
-            <div class="service-name">Beszel</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> System monitoring and metrics collection<br>
-                <strong>Type:</strong> LXC Container<br>
-                <strong>Function:</strong> Monitors all services across the infrastructure
-            </div>
-        </div>
+            <section id="services-table">
+                <h2><i class="fas fa-table"></i> Service Overview</h2>
+                <div class="info-box">
+                    <p><strong><i class="fas fa-shield-alt"></i> Network Security:</strong> All services are connected via Tailscale for secure remote access.</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service Name</th>
+                            <th>Type</th>
+                            <th>Primary Function</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Home Assistant OS</td>
+                            <td>VM</td>
+                            <td>Home Automation</td>
+                        </tr>
+                        <tr>
+                            <td>Docker Host</td>
+                            <td>VM</td>
+                            <td>Container Platform</td>
+                        </tr>
+                        <tr>
+                            <td>Beszel</td>
+                            <td>LXC</td>
+                            <td>System Monitoring</td>
+                        </tr>
+                        <tr>
+                            <td>Homepage</td>
+                            <td>LXC</td>
+                            <td>Dashboard</td>
+                        </tr>
+                        <tr>
+                            <td>Pi-hole</td>
+                            <td>LXC</td>
+                            <td>Ad Blocking</td>
+                        </tr>
+                        <tr>
+                            <td>Ntfy</td>
+                            <td>LXC</td>
+                            <td>Notifications</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </main>
 
-        <div class="service-item">
-            <div class="service-name">Homepage</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> Centralized dashboard<br>
-                <strong>Type:</strong> LXC Container<br>
-                <strong>Function:</strong> Provides unified access point to all services
-            </div>
-        </div>
-
-        <div class="service-item">
-            <div class="service-name">Pi-hole</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> Network-wide ad blocking<br>
-                <strong>Type:</strong> LXC Container<br>
-                <strong>Function:</strong> DNS filtering to block advertisements and trackers
-            </div>
-        </div>
-
-        <div class="service-item">
-            <div class="service-name">Ntfy</div>
-            <div class="service-description">
-                <strong>Purpose:</strong> Notification service<br>
-                <strong>Type:</strong> LXC Container<br>
-                <strong>Function:</strong> Sends server status notifications and alerts
-            </div>
-        </div>
-
-        <h2>📊 Service Overview Table</h2>
-        <div class="info-box">
-            <strong>🔐 Network Security:</strong> All services are connected via Tailscale for secure remote access
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Service Name</th>
-                    <th>Type</th>
-                    <th>Primary Function</th>
-                    <th>Category</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Home Assistant OS</td>
-                    <td>VM</td>
-                    <td>Home Automation</td>
-                    <td>Core Service</td>
-                </tr>
-                <tr>
-                    <td>Docker Host</td>
-                    <td>VM</td>
-                    <td>Container Platform</td>
-                    <td>Infrastructure</td>
-                </tr>
-                <tr>
-                    <td>Beszel</td>
-                    <td>LXC</td>
-                    <td>System Monitoring</td>
-                    <td>Monitoring</td>
-                </tr>
-                <tr>
-                    <td>Homepage</td>
-                    <td>LXC</td>
-                    <td>Dashboard</td>
-                    <td>Management</td>
-                </tr>
-                <tr>
-                    <td>Pi-hole</td>
-                    <td>LXC</td>
-                    <td>Ad Blocking</td>
-                    <td>Network Security</td>
-                </tr>
-                <tr>
-                    <td>Ntfy</td>
-                    <td>LXC</td>
-                    <td>Notifications</td>
-                    <td>Alerting</td>
-                </tr>
-            </tbody>
-        </table>
-
-
-        <div class="footer">
-            <p>Home Server Documentation | Last Updated: <span id="footerDate"></span>
-
-            <p>Generated for system administration and reference purposes</p>
-        </div>
+        <footer>
+            <p>© 2025 Martín Marzorati. All rights reserved.</p>
+        </footer>
     </div>
-
-   
 </body>
 </html>
