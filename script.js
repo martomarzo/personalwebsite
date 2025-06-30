@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.body.classList.contains('page-portfolio')) {
                 this.handleNavLinks();
                 this.updateActiveNavLinkOnScroll();
-                this.initSkillBarsAnimation(); // This was the missing call
+                this.initSkillBarsAnimation(); 
                 this.updateFooterCopyrightYear();
             }
             
@@ -118,34 +118,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         /**
          * Initializes the animation for the skill bars using IntersectionObserver.
-         * This function is now correctly called from init().
+         
          */
         initSkillBarsAnimation() {
-            const skillBars = document.querySelectorAll('.page-portfolio .skill-level-bar');
+            const skillFills = document.querySelectorAll('.page-portfolio .skill-fill');
 
             const observer = new IntersectionObserver(entries => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
-                        const fillElement = entry.target.querySelector('.skill-fill');
-                        const level = fillElement.getAttribute('data-level');
-                        
-                        // Set the width to trigger the CSS transition
-                        fillElement.style.width = `${level}%`;
-                        
-                        // Stop observing the element once the animation is triggered
+                        const level = entry.target.getAttribute('data-level');
+                        entry.target.style.width = `${level}%`;
                         observer.unobserve(entry.target);
                     }
                 });
             }, {
-                threshold: 0.5 // Trigger when 50% of the bar is visible
+                threshold: 0.1
             });
 
-            skillBars.forEach(bar => {
-                observer.observe(bar);
+            skillFills.forEach(fill => {
+                observer.observe(fill);
             });
         }
     };
 
-    // Run the application
     app.init();
 });

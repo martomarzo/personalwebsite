@@ -247,14 +247,17 @@ body {
   height: 12px;
   border-radius: 6px;
   width: 100%;
+  flex: 1;
   overflow: hidden;
 }
 
 .page-portfolio .skill-fill {
+  display: block;
   background-color: var(--accent-color);
   height: 100%;
   border-radius: 6px;
   width: 0%;
+  
 }
 
 .page-portfolio .education-item {
