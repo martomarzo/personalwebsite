@@ -1,13 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
+    /**
+     * Main application object to organize the site's scripts.
+     */
     const app = {
+        /**
+         * Initializes all necessary functions when the page loads.
+         */
         init() {
-            this.updatePageDates();
-            this.handleNavLinks();
-            this.updateActiveNavLinkOnScroll();
-            this.updateFooterCopyrightYear();
-            this.initSkillBarsAnimation();
+            // Only run portfolio-specific scripts if we are on the portfolio page
+            if (document.body.classList.contains('page-portfolio')) {
+                this.handleNavLinks();
+                this.updateActiveNavLinkOnScroll();
+                this.initSkillBarsAnimation(); // This was the missing call
+                this.updateFooterCopyrightYear();
+            }
+            
+            // Run server-info-specific scripts if we are on that page
+            if (document.body.classList.contains('page-server-info')) {
+                this.updatePageDates();
+            }
         },
 
+        /**
+         * Fetches the last commit date from the GitHub API.
+         */
         async getLastGitHubUpdate() {
             const username = 'martomarzo';
             const repository = 'personalwebsite';
@@ -15,122 +31,121 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error(`GitHub API error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
                 const commits = await response.json();
-                if (commits.length === 0) {
-                    throw new Error('No commits found');
-                }
+                if (!commits.length) throw new Error('No commits found');
+                
                 const lastCommit = commits[0];
-                return {
-                    date: new Date(lastCommit.commit.author.date),
-                    message: lastCommit.commit.message,
-                };
+                return new Date(lastCommit.commit.author.date);
             } catch (error) {
                 console.error('GitHub API Error:', error);
-                return {
-                    date: new Date(),
-                    message: 'Could not fetch last update time.',
-                };
+                return new Date(); // Fallback to current date on error
             }
         },
 
+        /**
+         * Updates the date elements on the server-info page.
+         */
         async updatePageDates() {
-            const updateInfo = await this.getLastGitHubUpdate();
-            const dateString = updateInfo.date.toLocaleDateString('en-US', {
+            const date = await this.getLastGitHubUpdate();
+            const dateString = date.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
             });
-
-            const dateElements = document.querySelectorAll('.last-updated');
-            dateElements.forEach(el => {
+            document.querySelectorAll('#currentDate, #footerDate').forEach(el => {
                 el.textContent = dateString;
-                el.title = updateInfo.message;
             });
         },
 
+        /**
+         * Handles smooth scrolling for navigation links.
+         */
         handleNavLinks() {
-            const navLinks = document.querySelectorAll('nav a');
-            navLinks.forEach(anchor => {
-                anchor.addEventListener('click', (e) => {
+            document.querySelectorAll('.page-portfolio .resume-nav a').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const targetId = e.currentTarget.getAttribute('href');
+                    const targetId = this.getAttribute('href');
                     const targetElement = document.querySelector(targetId);
                     if (targetElement) {
                         const navHeight = document.querySelector('.resume-nav').offsetHeight;
                         window.scrollTo({
                             top: targetElement.offsetTop - navHeight,
-                            behavior: 'smooth',
+                            behavior: 'smooth'
                         });
-                        navLinks.forEach(link => link.classList.remove('active'));
-                        e.currentTarget.classList.add('active');
                     }
                 });
             });
         },
 
+        /**
+         * Updates the active navigation link based on scroll position.
+         */
         updateActiveNavLinkOnScroll() {
-            window.addEventListener('scroll', () => {
-                const navElement = document.querySelector('.resume-nav');
-                if (!navElement) return;
+            const sections = document.querySelectorAll('.page-portfolio section[id]');
+            const navLinks = document.querySelectorAll('.page-portfolio .resume-nav a');
 
-                const scrollPosition = window.scrollY + navElement.offsetHeight + 50;
-                const sections = document.querySelectorAll('section');
-                const navLinks = document.querySelectorAll('nav a');
+            window.addEventListener('scroll', () => {
+                let current = '';
+                const scrollY = window.pageYOffset;
 
                 sections.forEach(section => {
-                    if (scrollPosition >= section.offsetTop && scrollPosition < section.offsetTop + section.offsetHeight) {
-                        const currentId = section.getAttribute('id');
-                        navLinks.forEach(link => {
-                            link.classList.remove('active');
-                            if (link.getAttribute('href') === `#${currentId}`) {
-                                link.classList.add('active');
-                            }
-                        });
+                    const sectionTop = section.offsetTop - 150; // Offset for better accuracy
+                    if (scrollY >= sectionTop) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
                     }
                 });
             });
         },
-
+        
+        /**
+         * Updates the copyright year in the footer.
+         */
         updateFooterCopyrightYear() {
-            const footerText = document.querySelector('.footer-text');
+            const footerText = document.querySelector('.page-portfolio .footer-text');
             if (footerText) {
                 const currentYear = new Date().getFullYear();
                 footerText.textContent = `© ${currentYear} Martín Marzorati. All rights reserved.`;
             }
         },
 
+        /**
+         * Initializes the animation for the skill bars using IntersectionObserver.
+         * This function is now correctly called from init().
+         */
         initSkillBarsAnimation() {
-            const skillBars = document.querySelectorAll('.skill-level-bar');
+            const skillBars = document.querySelectorAll('.page-portfolio .skill-level-bar');
 
-            // Set up the observer to watch for when skill bars enter the viewport
             const observer = new IntersectionObserver(entries => {
                 entries.forEach(entry => {
-                    // When a bar is 50% visible...
                     if (entry.isIntersecting) {
                         const fillElement = entry.target.querySelector('.skill-fill');
                         const level = fillElement.getAttribute('data-level');
                         
-                        // ...set the width to trigger the CSS transition
+                        // Set the width to trigger the CSS transition
                         fillElement.style.width = `${level}%`;
                         
-                        // Stop watching this bar to prevent re-triggering
+                        // Stop observing the element once the animation is triggered
                         observer.unobserve(entry.target);
                     }
                 });
             }, {
-                // Trigger when 50% of the item is visible
-                threshold: 0.5
+                threshold: 0.5 // Trigger when 50% of the bar is visible
             });
 
-            // Tell the observer to watch each skill bar
             skillBars.forEach(bar => {
                 observer.observe(bar);
             });
         }
     };
 
+    // Run the application
     app.init();
 });

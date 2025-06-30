@@ -41,7 +41,6 @@ body {
   font-family: var(--font-family-portfolio);
 }
 
-
 .page-portfolio .header-content {
   display: flex;
   flex-direction: column;
@@ -65,11 +64,6 @@ body {
   background-size: cover;
   background-position: center;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease-in-out;
-}
-
-.page-portfolio .profile-pic:hover {
-  transform: scale(1.05);
 }
 
 .page-portfolio h1 {
@@ -111,7 +105,6 @@ body {
   top: 0;
   z-index: 1000;
 }
-
 
 .page-portfolio .nav-container {
   display: flex;
@@ -225,12 +218,6 @@ body {
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   padding: 35px;
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-}
-
-.page-portfolio .skill-category:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
 }
 
 .page-portfolio .skill-category h3 {
@@ -268,7 +255,6 @@ body {
   height: 100%;
   border-radius: 6px;
   width: 0%;
-  transition: width 0.9s ease-out;
 }
 
 .page-portfolio .education-item {
@@ -288,8 +274,13 @@ body {
   justify-content: space-between;
   color: var(--text-light);
   margin-bottom: 12px;
-  font-style: italic;}
-  
+  font-style: italic;
+}
+
+.page-portfolio .school {
+  font-weight: 600;
+}
+
 .page-portfolio .projects-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -301,12 +292,6 @@ body {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-}
-
-.page-portfolio .project-card:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
 }
 
 .page-portfolio .project-content {
@@ -332,13 +317,8 @@ body {
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
-  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.page-portfolio .btn:hover {
-  background-color: #d35400;
-  transform: translateY(-3px);
-}
 .page-portfolio .languages-container {
   display: flex;
   flex-wrap: wrap;
@@ -352,8 +332,8 @@ body {
   padding: 20px 40px;
   border-radius: 40px;
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.1);
-  display: flex; /* This allows gap to work */
-  gap: 10px; /* Adds space between language and level */
+  display: flex;
+  gap: 10px;
 }
 
 .page-portfolio .language-name {
@@ -398,12 +378,6 @@ body {
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
-  transition: background-color 0.3s ease-in-out, transform 0.3s ease-in-out;
-}
-
-.page-portfolio .download-cv:hover {
-  background-color: #d35400;
-  transform: translateY(-3px);
 }
 
 /* ==========================================================================
@@ -463,10 +437,9 @@ body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-
 .page-server-info .service-item ul {
     list-style-position: inside;
-    padding-left: 5px; /* Adds a little space for the bullets */
+    padding-left: 5px;
 }
 
 .page-server-info .service-name {
@@ -513,7 +486,51 @@ body {
 }
 
 /* ==========================================================================
-   4. Media Queries (for responsiveness)
+   4. Motion & Animation (Accessibility Friendly)
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-portfolio .skill-fill {
+    transition: width 0.9s ease-out;
+  }
+  .page-portfolio .profile-pic {
+    transition: transform 0.3s ease-in-out;
+  }
+  .page-portfolio .profile-pic:hover {
+    transform: scale(1.05);
+  }
+  .page-portfolio .skill-category {
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  }
+  .page-portfolio .skill-category:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  }
+  .page-portfolio .project-card {
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  }
+  .page-portfolio .project-card:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  }
+  .page-portfolio .btn {
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  .page-portfolio .btn:hover {
+    background-color: #d35400;
+    transform: translateY(-3px);
+  }
+  .page-portfolio .download-cv {
+    transition: background-color 0.3s ease-in-out, transform 0.3s ease-in-out;
+  }
+  .page-portfolio .download-cv:hover {
+    background-color: #d35400;
+    transform: translateY(-3px);
+  }
+}
+
+/* ==========================================================================
+   5. Responsive Design
    ========================================================================== */
 
 @media (max-width: 768px) {
