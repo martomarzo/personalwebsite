@@ -4,352 +4,114 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Martín Marzorati Portfolio</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Reusing main styles for consistency -->
+    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body>
+<body class="admin-body">
     <header>
         <div class="container">
             <h1>Admin Panel</h1>
-            <nav>
-                <a href="#resume-versions">Versions</a>
-                <a href="#summary">Summary</a>
-                <a href="#contact-info">Contact Info</a>
-                <a href="#experience">Experience</a>
-                <a href="#education">Education</a>
-                <a href="#projects">Projects</a>
-                <a href="#skills">Skills</a>
-            </nav>
-            <div class="main-version-selector-container">
-                <label for="main-version-selector">View Version:</label>
-                <select id="main-version-selector"></select>
-            </div>
+            <p>Manage your resume versions and content.</p>
         </div>
     </header>
 
-    <main class="container admin-main">
+    <div class="admin-container">
+        <!-- Left Column: Versions & Settings -->
+        <aside class="admin-sidebar">
+            <section id="versions-manager" class="sidebar-section">
+                <h2>Resume Versions</h2>
+                <div class="add-version-form" style="margin-bottom: 20px;">
+                    <input type="text" id="new-version-name" placeholder="Create new version...">
+                    <button id="add-version-btn" class="btn-primary">Add</button>
+                </div>
+                <ul id="versions-list"></ul>
+            </section>
 
-        <section id="resume-versions" class="admin-section">
-            <h2>Resume Versions</h2>
-            <button class="add-button" data-section="resume-versions">Add New Version</button>
-            <div class="table-container">
-                <table id="resume-versions-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Language</th>
-                            <th>Default</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Resume versions will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="resume-versions-form-container" class="form-container hidden">
-                <h3>Add/Edit Resume Version</h3>
-                <form id="resume-versions-form">
-                    <input type="hidden" id="version-id">
-                    <label for="version-name">Version Name:</label>
-                    <input type="text" id="version-name" required>
+            <section id="version-settings-manager" class="sidebar-section hidden">
+                <form id="version-settings-form">
+                    <div class="settings-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">Settings for <span id="current-version-name"></span></h3>
+                        <button type="submit" class="btn-primary" style="padding: 8px 15px;">Save All</button>
+                    </div>
 
-                    <label for="version-language">Language (e.g., en, es):</label>
-                    <input type="text" id="version-language" required>
+                    <h4>Contact Information (Global)</h4>
+                    <div class="form-grid" style="margin-bottom: 20px;">
+                        <input type="text" id="contact-name" name="name" placeholder="Your Name">
+                        <input type="email" id="contact-email" name="email" placeholder="Email">
+                        <input type="tel" id="contact-phone" name="phone" placeholder="Phone">
+                        <input type="url" id="contact-linkedin" name="linkedin" placeholder="LinkedIn URL">
+                        <input type="url" id="contact-github" name="github" placeholder="GitHub URL">
+                        <input type="url" id="contact-website" name="website" placeholder="Website URL">
+                    </div>
 
-                    <label for="version-is-default">
-                        <input type="checkbox" id="version-is-default"> Set as Default
-                    </label>
+                    <div class="settings-tabs">
+                        <div class="settings-grid bilingual-titles">
+                            <div class="lang-col">
+                                <h4>English Titles</h4>
+                                <input type="text" data-field="title_summary" placeholder="Summary Title (EN)">
+                                <input type="text" data-field="title_experience" placeholder="Experience Title (EN)">
+                                <input type="text" data-field="title_education" placeholder="Education Title (EN)">
+                                <input type="text" data-field="title_projects" placeholder="Projects Title (EN)">
+                                <input type="text" data-field="title_skills" placeholder="Skills Title (EN)">
+                                <input type="text" id="contact-subtitle" name="subtitle" placeholder="Subtitle (EN)">
+                            </div>
+                            <div class="lang-col">
+                                <h4>Spanish Titles</h4>
+                                <input type="text" data-field="title_summary_es" placeholder="Resumen (ES)">
+                                <input type="text" data-field="title_experience_es" placeholder="Experiencia (ES)">
+                                <input type="text" data-field="title_education_es" placeholder="Educación (ES)">
+                                <input type="text" data-field="title_projects_es" placeholder="Proyectos (ES)">
+                                <input type="text" data-field="title_skills_es" placeholder="Habilidades (ES)">
+                                <input type="text" id="contact-subtitle_es" name="subtitle_es" placeholder="Subtítulo (ES)">
+                            </div>
+                        </div>
+                    </div>
 
-                    <hr>
-                    <h3>Section Titles (Optional)</h3>
-                    <label for="version-title-summary">Summary Title:</label>
-                    <input type="text" id="version-title-summary">
-
-                    <label for="version-title-experience">Experience Title:</label>
-                    <input type="text" id="version-title-experience">
-
-                    <label for="version-title-skills">Skills Title:</label>
-                    <input type="text" id="version-title-skills">
-
-                    <label for="version-title-projects">Projects Title:</label>
-                    <input type="text" id="version-title-projects">
-
-                    <label for="version-title-education">Education Title:</label>
-                    <input type="text" id="version-title-education">
-
-                    <label for="version-title-languages">Languages Title:</label>
-                    <input type="text" id="version-title-languages">
-
-                    <hr>
-                    <h3>Section Visibility</h3>
-                    <label for="version-show-summary">
-                        <input type="checkbox" id="version-show-summary"> Show Summary Section
-                    </label>
-                    <label for="version-show-experience">
-                        <input type="checkbox" id="version-show-experience"> Show Experience Section
-                    </label>
-                    <label for="version-show-skills">
-                        <input type="checkbox" id="version-show-skills"> Show Skills Section
-                    </label>
-                    <label for="version-show-projects">
-                        <input type="checkbox" id="version-show-projects"> Show Projects Section
-                    </label>
-                    <label for="version-show-education">
-                        <input type="checkbox" id="version-show-education"> Show Education Section
-                    </label>
-                    <label for="version-show-languages">
-                        <input type="checkbox" id="version-show-languages"> Show Languages Section
-                    </label>
-
-                    <button type="submit">Save Version</button>
-                    <button type="button" class="cancel-button">Cancel</button>
-                </form>
-            </div>
-        </section>
-
-        <section id="summary" class="admin-section">
-            <h2>Professional Summary</h2>
-            <div class="form-container">
-                <form id="summary-form">
-                    <label for="summary-subtitle">Subtitle:</label>
-                    <input type="text" id="summary-subtitle">
-
-                    <textarea id="summary-content" rows="10" required></textarea>
-                    <button type="submit">Save Summary</button>
-                </form>
-            </div>
-        </section>
-
-        <section id="contact-info" class="admin-section">
-            <h2>Contact Information</h2>
-            <div class="form-container">
-                <form id="contact-info-form" enctype="multipart/form-data">
-                    <label for="contact-email">Email:</label>
-                    <input type="email" id="contact-email" required>
-
-                    <label for="contact-phone">Phone:</label>
-                    <input type="tel" id="contact-phone">
-
-                    <label for="contact-linkedin">LinkedIn URL:</label>
-                    <input type="url" id="contact-linkedin">
-
-                    <label for="contact-github">GitHub URL:</label>
-                    <input type="url" id="contact-github">
-
-                    <label for="contact-instagram">Instagram URL:</label>
-                    <input type="url" id="contact-instagram">
+                    <h4>Section Visibility</h4>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                        <label><input type="checkbox" data-field="show_summary"> Summary</label>
+                        <label><input type="checkbox" data-field="show_experience"> Experience</label>
+                        <label><input type="checkbox" data-field="show_education"> Education</label>
+                        <label><input type="checkbox" data-field="show_projects"> Projects</label>
+                        <label><input type="checkbox" data-field="show_skills"> Skills</label>
+                    </div>
 
                     <label for="contact-profile-pic">Profile Picture:</label>
                     <input type="file" id="contact-profile-pic" accept="image/*">
                     <div id="current-profile-pic-preview"></div>
-
-                    <button type="submit">Save Contact Info</button>
                 </form>
+            </section>
+        </aside>
+
+        <!-- Right Column: Content Pools -->
+        <main class="admin-main-content">
+            <div class="content-tabs">
+                <button class="tab-link active" data-tab="experience">Experience</button>
+                <button class="tab-link" data-tab="education">Education</button>
+                <button class="tab-link" data-tab="project">Projects</button>
+                <button class="tab-link" data-tab="skill">Skills</button>
+                <button class="tab-link" data-tab="summary">Summary</button>
             </div>
-        </section>
 
-        <section id="experience" class="admin-section">
-            <h2>Professional Experience</h2>
-            <button class="add-button" data-section="experience">Add New Experience</button>
-            <div class="table-container">
-                <table id="experience-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Title</th>
-                            <th>Company</th>
-                            <th>Location</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Experience items will be loaded here -->
-                    </tbody>
-                </table>
+            <div id="content-pool-container">
+                <!-- Content for each tab will be dynamically inserted here -->
             </div>
-            <div id="experience-form-container" class="form-container hidden">
-                <h3>Add/Edit Experience</h3>
-                <form id="experience-form">
-                    <input type="hidden" id="experience-id">
-                    <label for="exp-version-id">Resume Version:</label>
-                    <select id="exp-version-id" required></select>
+        </main>
+    </div>
 
-                    <label for="exp-title">Title:</label>
-                    <input type="text" id="exp-title" required>
-
-                    <label for="exp-company">Company:</label>
-                    <input type="text" id="exp-company" required>
-
-                    <label for="exp-location">Location:</label>
-                    <input type="text" id="exp-location">
-
-                    <label for="exp-start-date">Start Date:</label>
-                    <input type="date" id="exp-start-date" required>
-
-                    <label for="exp-end-date">End Date:</label>
-                    <input type="date" id="exp-end-date">
-
-                    <label for="exp-description">Description:</label>
-                    <textarea id="exp-description" rows="5"></textarea>
-
-                    <label for="exp-contact-person">Contact Person:</label>
-                    <input type="text" id="exp-contact-person">
-
-                    <label for="exp-contact-email">Contact Email:</label>
-                    <input type="email" id="exp-contact-email">
-
-                    <button type="submit">Save Experience</button>
-                    <button type="button" class="cancel-button">Cancel</button>
-                </form>
+    <!-- Modal for Adding/Editing Content Pool Items -->
+    <div id="item-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modal-title"></h2>
+            <form id="modal-form"></form>
+            <div class="modal-actions">
+                <button id="modal-save-btn" class="btn-primary">Save</button>
+                <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>
             </div>
-        </section>
-
-        <section id="education" class="admin-section">
-            <h2>Education</h2>
-            <button class="add-button" data-section="education">Add New Education</button>
-            <div class="table-container">
-                <table id="education-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Degree</th>
-                            <th>Institution</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Education items will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="education-form-container" class="form-container hidden">
-                <h3>Add/Edit Education</h3>
-                <form id="education-form">
-                    <input type="hidden" id="edu-id">
-                    <label for="edu-version-id">Resume Version:</label>
-                    <select id="edu-version-id" required></select>
-
-                    <label for="edu-degree">Degree:</label>
-                    <input type="text" id="edu-degree" required>
-
-                    <label for="edu-institution">Institution:</label>
-                    <input type="text" id="edu-institution" required>
-
-                    <label for="edu-start-date">Start Date:</label>
-                    <input type="date" id="edu-start-date" required>
-
-                    <label for="edu-end-date">End Date:</label>
-                    <input type="date" id="edu-end-date">
-
-                    <label for="edu-description">Description:</label>
-                    <textarea id="edu-description" rows="5"></textarea>
-
-                    <button type="submit">Save Education</button>
-                    <button type="button" class="cancel-button">Cancel</button>
-                </form>
-            </div>
-        </section>
-
-        <section id="projects" class="admin-section">
-            <h2>Personal Projects</h2>
-            <button class="add-button" data-section="projects">Add New Project</button>
-            <div class="table-container">
-                <table id="projects-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Title</th>
-                            <th>Link</th>
-                            <th>Icon</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Project items will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="projects-form-container" class="form-container hidden">
-                <h3>Add/Edit Project</h3>
-                <form id="projects-form">
-                    <input type="hidden" id="proj-id">
-                    <label for="proj-version-id">Resume Version:</label>
-                    <select id="proj-version-id" required></select>
-
-                    <label for="proj-title">Title:</label>
-                    <input type="text" id="proj-title" required>
-
-                    <label for="proj-description">Description:</label>
-                    <textarea id="proj-description" rows="5" required></textarea>
-
-                    <label for="proj-link">Link URL:</label>
-                    <input type="url" id="proj-link">
-
-                    <label for="proj-icon">Icon Class (e.g., fas fa-globe):</label>
-                    <input type="text" id="proj-icon">
-
-                    <button type="submit">Save Project</button>
-                    <button type="button" class="cancel-button">Cancel</button>
-                </form>
-            </div>
-        </section>
-
-        <section id="skills" class="admin-section">
-            <h2>Technical Skills & Expertise</h2>
-            <button class="add-button" data-section="skills">Add New Skill</button>
-            <div class="table-container">
-                <table id="skills-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Category</th>
-                            <th>Name</th>
-                            <th>Level (%)</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Skill items will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="skills-form-container" class="form-container hidden">
-                <h3>Add/Edit Skill</h3>
-                <form id="skills-form">
-                    <input type="hidden" id="skill-id">
-                    <label for="skill-version-id">Resume Version:</label>
-                    <select id="skill-version-id" required></select>
-
-                    <label for="skill-category">Category:</label>
-                    <input type="text" id="skill-category" required>
-
-                    <label for="skill-name">Name:</label>
-                    <input type="text" id="skill-name" required>
-
-                    <label for="skill-level">Level (%):</label>
-                    <input type="number" id="skill-level" min="0" max="100" required>
-
-                    <button type="submit">Save Skill</button>
-                    <button type="button" class="cancel-button">Cancel</button>
-                </form>
-            </div>
-        </section>
-
-    </main>
-
-    <footer>
-        <div class="container">
-            <p class="footer-text">© 2025 Martín Marzorati. Admin Panel.</p>
         </div>
-    </footer>
+    </div>
 
-    <script src="admin.js"></script>
+    <script src="admin-dashboard.js"></script>
 </body>
 </html>

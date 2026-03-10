@@ -1,3 +1,8 @@
 GEMINI.md
 backend/.env
 public/uploads/
+node_modules/
+backend/node_modules/
+.DS_Store
+*.log
+backend/database.sql
