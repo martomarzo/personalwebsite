@@ -3,23 +3,13 @@ const { Pool } = require('pg');
 const path = require('path');
 const multer = require('multer');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
-console.log('Current working directory:', process.cwd()); // Added for debugging
+
 const app = express();
 const port = process.env.PORT || 3000;
 const cors = require('cors');
+const puppeteer = require('puppeteer');
 
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Use an absolute path to ensure files are saved in the correct directory
-        const uploadPath = path.join(__dirname, '..', 'public', 'uploads');
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname); // Unique filename
-    }
-});
-const upload = multer({ storage: storage });
+// --- Setup ---
 
 // Database connection pool
 const pool = new Pool({
@@ -30,608 +20,581 @@ const pool = new Pool({
     port: process.env.DB_PORT,
 });
 
-// Test database connection
+// Test DB connection
 pool.connect((err, client, release) => {
-    if (err) {
-        return console.error('Error acquiring client', err.stack);
-    }
+    if (err) return console.error('Error acquiring client', err.stack);
     client.query('SELECT NOW()', (err, result) => {
         release();
-        if (err) {
-            return console.error('Error executing query', err.stack);
-        }
-        console.log('Database connected:', result.rows[0].now);
+        if (err) return console.error('Error executing query', err.stack);
     });
 });
 
-app.use(cors()); // Enable CORS for all routes
-app.use(express.json()); // For parsing application/json
-app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
-app.use(express.static(path.join(__dirname, '..'))); // Serve static files from the project root
-app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve static files from the project root's 'public' directory
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Serve index.html for the root route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'index.html'));
+// Static files
+app.use(express.static(path.join(__dirname, '..')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadPath = path.join(__dirname, '..', 'public', 'uploads');
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
+
+// --- API Routes ---
+
+// Serve index.html for the root and admin.html for /admin
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.html')));
+
+// --- PUBLIC API (for the portfolio website) ---
+
+// GET a fully composed resume by its unique SLUG and language
+app.get('/api/resume/slug/:slug/:language', async (req, res) => {
+    const { slug, language } = req.params;
+    const client = await pool.connect();
+    try {
+        const resume = {};
+
+        // 1. Get Version ID from Slug
+        const slugRes = await client.query('SELECT id FROM resume_versions WHERE slug = $1', [slug]);
+        if (slugRes.rows.length === 0) {
+            return res.status(404).send('Resume version not found');
+        }
+        const versionId = slugRes.rows[0].id;
+
+        // 2. Reuse the existing logic by calling a helper function or copy-pasting for now
+        // For simplicity, I'll update the main logic to accept either ID or Slug.
+        
+        // --- (Start of the main fetch logic) ---
+        const versionQuery = `
+            SELECT 
+                rv.id, rv.name, rv.slug, rv.show_experience, rv.show_education, rv.show_projects, rv.show_skills, rv.show_summary,
+                ci.name as contact_name, ci.email, ci.phone, ci.linkedin, ci.github, ci.website, ci.profile_picture,
+                CASE WHEN $2 = 'es' THEN rv.title_experience_es ELSE rv.title_experience END as title_experience,
+                CASE WHEN $2 = 'es' THEN rv.title_education_es ELSE rv.title_education END as title_education,
+                CASE WHEN $2 = 'es' THEN rv.title_projects_es ELSE rv.title_projects END as title_projects,
+                CASE WHEN $2 = 'es' THEN rv.title_skills_es ELSE rv.title_skills END as title_skills,
+                CASE WHEN $2 = 'es' THEN rv.title_summary_es ELSE rv.title_summary END as title_summary,
+                CASE WHEN $2 = 'es' THEN ci.subtitle_es ELSE ci.subtitle END as subtitle
+            FROM resume_versions rv
+            LEFT JOIN contact_info ci ON rv.id = ci.version_id
+            WHERE rv.id = $1;
+        `;
+        const versionRes = await client.query(versionQuery, [versionId, language]);
+        resume.version = versionRes.rows[0];
+
+        // ... Get Experience, Education, Projects, Skills, Summary (Same as ID route)
+        // (I will wrap this in a shared function in the next turn to keep code clean)
+
+        // 2. Get Experience (if visible)
+        if (resume.version.show_experience) {
+            const expQuery = `
+                SELECT p.id, p.company, p.start_date, p.end_date, d.role, d.description
+                FROM experience_pool p
+                JOIN experience_details d ON p.id = d.pool_id
+                JOIN version_experience_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY p.end_date DESC NULLS FIRST, p.start_date DESC;
+            `;
+            const expRes = await client.query(expQuery, [versionId, language]);
+            resume.experience = expRes.rows;
+        }
+
+        // 3. Get Education (if visible)
+        if (resume.version.show_education) {
+            const eduQuery = `
+                SELECT p.id, p.institution, p.start_date, p.end_date, d.degree, d.description
+                FROM education_pool p
+                JOIN education_details d ON p.id = d.pool_id
+                JOIN version_education_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY p.end_date DESC NULLS FIRST, p.start_date DESC;
+            `;
+            const eduRes = await client.query(eduQuery, [versionId, language]);
+            resume.education = eduRes.rows;
+        }
+
+        // 4. Get Projects (if visible)
+        if (resume.version.show_projects) {
+            const projQuery = `
+                SELECT p.id, p.link, d.name, d.description
+                FROM project_pool p
+                JOIN project_details d ON p.id = d.pool_id
+                JOIN version_project_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY p.id DESC;
+            `;
+            const projRes = await client.query(projQuery, [versionId, language]);
+            resume.projects = projRes.rows;
+        }
+
+        // 5. Get Skills (if visible)
+        if (resume.version.show_skills) {
+            const skillsQuery = `
+                SELECT p.id, p.percentage, sc.name as category, d.name
+                FROM skill_pool p
+                JOIN skill_details d ON p.id = d.pool_id
+                JOIN skill_categories sc ON p.category_id = sc.id
+                JOIN version_skill_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY sc.name, d.name;
+            `;
+            const skillsRes = await client.query(skillsQuery, [versionId, language]);
+            resume.skills = skillsRes.rows;
+        }
+
+        // 6. Get Summary (if visible)
+        if (resume.version.show_summary) {
+            const summaryQuery = `
+                SELECT p.id, d.content
+                FROM summary_pool p
+                JOIN summary_details d ON p.id = d.pool_id
+                JOIN version_summary_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY p.id DESC;
+            `;
+            const summaryRes = await client.query(summaryQuery, [versionId, language]);
+            resume.summary = summaryRes.rows.length > 0 ? summaryRes.rows[0] : null;
+        }
+
+        res.json(resume);
+
+    } catch (err) {
+        console.error('Error fetching composed resume:', err);
+        res.status(500).send('Server Error');
+    } finally {
+        client.release();
+    }
 });
 
-// Serve admin.html for the /admin route
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'admin.html'));
+// --- PDF Download API ---
+app.get('/api/download/pdf/:versionId/:language', async (req, res) => {
+    const { versionId, language } = req.params;
+    const url = `${req.protocol}://${req.get('host')}/?version=${versionId}&lang=${language}`;
+
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Args for running in a container/CI environment
+        });
+        const page = await browser.newPage();
+        
+        // Navigate to the page and wait for it to be fully loaded
+        await page.goto(url, { waitUntil: 'networkidle0' });
+
+        // Generate the PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: {
+                top: '20px',
+                right: '20px',
+                bottom: '20px',
+                left: '20px'
+            }
+        });
+
+        // Set headers and send the PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="resume-v${versionId}-${language}.pdf"`);
+        res.send(pdfBuffer);
+
+    } catch (err) {
+        console.error('Error generating PDF:', err);
+        res.status(500).send('Could not generate PDF.');
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
 });
 
-// Basic test route (moved to /api/test to avoid conflict with /)
-app.get('/api/test', (req, res) => {
-    res.send('Backend API is running!');
-});
 
-// Helper to get default version object
-async function getDefaultVersion() {
-    const res = await pool.query('SELECT * FROM resume_versions WHERE is_default = TRUE LIMIT 1');
-    return res.rows[0] || null;
-}
+// --- ADMIN APIs ---
 
-// --- Resume Versions Endpoints ---
-
-// GET all resume versions
-app.get('/api/resume_versions', async (req, res) => {
+// -- Resume Versions --
+app.get('/api/admin/versions', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM resume_versions ORDER BY name');
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
+        res.status(500).json({ error: err.message });
     }
 });
 
-// GET a single resume version by ID
-app.get('/api/resume_versions/:id', async (req, res) => {
+// Duplicate a version and all its linked visibility data
+app.post('/api/admin/versions/duplicate/:id', async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
     try {
-        const { id } = req.params;
-        const result = await pool.query('SELECT * FROM resume_versions WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Resume version not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
+        await client.query('BEGIN');
 
-// POST a new resume version
-app.post('/api/resume_versions', async (req, res) => {
-    try {
-        const { name, language, is_default, title_professional_summary, title_professional_experience, title_technical_skills, title_personal_projects, title_education, title_languages, show_professional_summary, show_professional_experience, show_technical_skills, show_personal_projects, show_education, show_languages } = req.body;
-        if (is_default) {
-            // Ensure only one default version exists
-            await pool.query('UPDATE resume_versions SET is_default = FALSE WHERE is_default = TRUE');
-        }
-        const result = await pool.query(
-            'INSERT INTO resume_versions (name, language, is_default, title_professional_summary, title_professional_experience, title_technical_skills, title_personal_projects, title_education, title_languages, show_professional_summary, show_professional_experience, show_technical_skills, show_personal_projects, show_education, show_languages) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING * ',
-            [name, language, is_default || false, title_professional_summary, title_professional_experience, title_technical_skills, title_personal_projects, title_education, title_languages, show_professional_summary, show_professional_experience, show_technical_skills, show_personal_projects, show_education, show_languages]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
+        // 1. Get original version data
+        const origVersionRes = await client.query('SELECT * FROM resume_versions WHERE id = $1', [id]);
+        if (origVersionRes.rows.length === 0) return res.status(404).send('Version not found');
+        const v = origVersionRes.rows[0];
 
-// PUT (update) an existing resume version
-app.put('/api/resume_versions/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { name, language, is_default, title_professional_summary, title_professional_experience, title_technical_skills, title_personal_projects, title_education, title_languages, show_professional_summary, show_professional_experience, show_technical_skills, show_personal_projects, show_education, show_languages } = req.body;
-        if (is_default) {
-            await pool.query('UPDATE resume_versions SET is_default = FALSE WHERE is_default = TRUE AND id != $1', [id]);
-        }
-        const result = await pool.query(
-            'UPDATE resume_versions SET name = $1, language = $2, is_default = $3, title_professional_summary = $4, title_professional_experience = $5, title_technical_skills = $6, title_personal_projects = $7, title_education = $8, title_languages = $9, show_professional_summary = $10, show_professional_experience = $11, show_technical_skills = $12, show_personal_projects = $13, show_education = $14, show_languages = $15 WHERE id = $16 RETURNING * ',
-            [name, language, is_default || false, title_professional_summary, title_professional_experience, title_technical_skills, title_personal_projects, title_education, title_languages, show_professional_summary, show_professional_experience, show_technical_skills, show_personal_projects, show_education, show_languages, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).send('Resume version not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
+        // 2. Insert new version (copy all titles and flags)
+        const newName = `${v.name} (Copy)`;
+        const newSlug = `${v.slug}-copy-${Date.now()}`;
+        const versionQuery = `
+            INSERT INTO resume_versions (
+                name, slug, 
+                title_experience, title_experience_es, show_experience,
+                title_education, title_education_es, show_education,
+                title_projects, title_projects_es, show_projects,
+                title_skills, title_skills_es, show_skills,
+                title_summary, title_summary_es, show_summary
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            RETURNING id;
+        `;
+        const newVersionRes = await client.query(versionQuery, [
+            newName, newSlug,
+            v.title_experience, v.title_experience_es, v.show_experience,
+            v.title_education, v.title_education_es, v.show_education,
+            v.title_projects, v.title_projects_es, v.show_projects,
+            v.title_skills, v.title_skills_es, v.show_skills,
+            v.title_summary, v.title_summary_es, v.show_summary
+        ]);
+        const newVersionId = newVersionRes.rows[0].id;
 
-// DELETE a resume version
-app.delete('/api/resume_versions/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query('DELETE FROM resume_versions WHERE id = $1 RETURNING * ', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Resume version not found');
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- Experience Endpoints ---
-
-// GET all experience entries for a given version or default
-app.get('/api/experience', async (req, res) => {
-    try {
-        let versionId = req.query.versionId;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        const result = await pool.query('SELECT * FROM experience WHERE version_id = $1 ORDER BY end_date DESC NULLS FIRST, start_date DESC', [versionId]);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// GET a single experience entry by ID
-app.get('/api/experience/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query('SELECT * FROM experience WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Experience entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// POST a new experience entry
-app.post('/api/experience', async (req, res) => {
-    try {
-        let { title, company, location, start_date, end_date, description, contact_person, contact_email, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        end_date = end_date === '' ? null : end_date; // Convert empty string to null
-        start_date = start_date === '' ? null : start_date; // Convert empty string to null
-        const result = await pool.query(
-            'INSERT INTO experience (title, company, location, start_date, end_date, description, contact_person, contact_email, version_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING * ',
-            [title, company, location, start_date, end_date, description, contact_person, contact_email, version_id]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// PUT (update) an existing experience entry
-app.put('/api/experience/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let { title, company, location, start_date, end_date, description, contact_person, contact_email, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        end_date = end_date === '' ? null : end_date; // Convert empty string to null
-        start_date = start_date === '' ? null : start_date; // Convert empty string to null
-        const result = await pool.query(
-            'UPDATE experience SET title = $1, company = $2, location = $3, start_date = $4, end_date = $5, description = $6, contact_person = $7, contact_email = $8, version_id = $9 WHERE id = $10 RETURNING * ',
-            [title, company, location, start_date, end_date, description, contact_person, contact_email, version_id, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).send('Experience entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// DELETE an experience entry
-app.delete('/api/experience/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let versionId = req.query.versionId || req.body.version_id;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.status(400).send('version_id is required');
-        const result = await pool.query('DELETE FROM experience WHERE id = $1 AND version_id = $2 RETURNING * ', [id, versionId]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Experience entry not found or not in specified version');
-        }
-        res.status(204).send(); // No content for successful deletion
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- Education Endpoints ---
-
-// GET all education entries for a given version or default
-app.get('/api/education', async (req, res) => {
-    try {
-        let versionId = req.query.versionId;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.json([]);
-        const result = await pool.query('SELECT * FROM education WHERE version_id = $1 ORDER BY end_date DESC NULLS FIRST, start_date DESC', [versionId]);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// GET a single education entry by ID
-app.get('/api/education/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query('SELECT * FROM education WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Education entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// POST a new education entry
-app.post('/api/education', async (req, res) => {
-    try {
-        let { degree, institution, start_date, end_date, description, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        end_date = end_date === '' ? null : end_date; // Convert empty string to null
-        start_date = start_date === '' ? null : start_date; // Convert empty string to null
-        const result = await pool.query(
-            'INSERT INTO education (degree, institution, start_date, end_date, description, version_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING * ',
-            [degree, institution, start_date, end_date, description, version_id]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// PUT (update) an existing education entry
-app.put('/api/education/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let { degree, institution, start_date, end_date, description, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        end_date = end_date === '' ? null : end_date; // Convert empty string to null
-        start_date = start_date === '' ? null : start_date; // Convert empty string to null
-        const result = await pool.query(
-            'UPDATE education SET degree = $1, institution = $2, start_date = $3, end_date = $4, description = $5, version_id = $6 WHERE id = $7 RETURNING * ',
-            [degree, institution, start_date, end_date, description, version_id, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).send('Education entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// DELETE an education entry
-app.delete('/api/education/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let versionId = req.query.versionId || req.body.version_id;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.status(400).send('version_id is required');
-        const result = await pool.query('DELETE FROM education WHERE id = $1 AND version_id = $2 RETURNING * ', [id, versionId]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Education entry not found or not in specified version');
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- Projects Endpoints ---
-
-// GET all project entries for a given version or default
-app.get('/api/projects', async (req, res) => {
-    try {
-        let versionId = req.query.versionId;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.json([]);
-        const result = await pool.query('SELECT * FROM projects WHERE version_id = $1 ORDER BY id DESC', [versionId]);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// GET a single project entry by ID
-app.get('/api/projects/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Project entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// POST a new project entry
-app.post('/api/projects', async (req, res) => {
-    try {
-        const { title, description, link, icon, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        const result = await pool.query(
-            'INSERT INTO projects (title, description, link, icon, version_id) VALUES ($1, $2, $3, $4, $5) RETURNING * ',
-            [title, description, link, icon, version_id]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// PUT (update) an existing project entry
-app.put('/api/projects/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { title, description, link, icon, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        const result = await pool.query(
-            'UPDATE projects SET title = $1, description = $2, link = $3, icon = $4, version_id = $5 WHERE id = $6 RETURNING * ',
-            [title, description, link, icon, version_id, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).send('Project entry not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// DELETE a project entry
-app.delete('/api/projects/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let versionId = req.query.versionId || req.body.version_id;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.status(400).send('version_id is required');
-        const result = await pool.query('DELETE FROM projects WHERE id = $1 AND version_id = $2 RETURNING * ', [id, versionId]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Project entry not found or not in specified version');
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- Skills Endpoints ---
-
-// GET all skills for a given version or default
-app.get('/api/skills', async (req, res) => {
-    try {
-        let versionId = req.query.versionId;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.json([]);
-        const result = await pool.query('SELECT * FROM skills WHERE version_id = $1 ORDER BY category, name', [versionId]);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// GET a single skill by ID
-app.get('/api/skills/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query('SELECT * FROM skills WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Skill not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// POST a new skill
-app.post('/api/skills', async (req, res) => {
-    try {
-        const { category, name, level, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        const result = await pool.query(
-            'INSERT INTO skills (category, name, level, version_id) VALUES ($1, $2, $3, $4) RETURNING * ',
-            [category, name, level, version_id]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// PUT (update) an existing skill
-app.put('/api/skills/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { category, name, level, version_id } = req.body;
-        if (!version_id) return res.status(400).send('version_id is required');
-        const result = await pool.query(
-            'UPDATE skills SET category = $1, name = $2, level = $3, version_id = $4 WHERE id = $5 RETURNING * ',
-            [category, name, level, version_id, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).send('Skill not found');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// DELETE a skill
-app.delete('/api/skills/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        let versionId = req.query.versionId || req.body.version_id;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.status(400).send('version_id is required');
-        const result = await pool.query('DELETE FROM skills WHERE id = $1 AND version_id = $2 RETURNING * ', [id, versionId]);
-        if (result.rows.length === 0) {
-            return res.status(404).send('Skill not found or not in specified version');
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- Summary Endpoints ---
-
-// GET the professional summary for a given version or default
-app.get('/api/summary', async (req, res) => {
-    try {
-        let versionId = req.query.versionId;
-        if (!versionId) {
-            const defaultVersion = await getDefaultVersion();
-            if (defaultVersion) versionId = defaultVersion.id;
-        }
-        if (!versionId) return res.status(404).send('No default version found');
-        const result = await pool.query('SELECT * FROM summary WHERE version_id = $1 LIMIT 1', [versionId]); // Limit 1 as only one summary per version
-        if (result.rows.length === 0) {
-            return res.status(404).send('Summary not found for this version');
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// PUT (update) the professional summary for a given version or create if not exists
-app.put('/api/summary', async (req, res) => {
-    try {
-        const { content, subtitle, version_id } = req.body;
-        console.log('PUT /api/summary received:', { content, subtitle, version_id }); // Debug log
-        if (!version_id) return res.status(400).send('version_id is required');
-
-        // Check if a summary already exists for this version_id
-        const existingSummary = await pool.query('SELECT id FROM summary WHERE version_id = $1', [version_id]);
-        console.log('Existing summary for version_id', version_id, ':', existingSummary.rows); // Debug log
-
-        let result;
-        if (existingSummary.rows.length > 0) {
-            // Update existing summary
-            const summaryId = existingSummary.rows[0].id;
-            result = await pool.query(
-                'UPDATE summary SET content = $1, subtitle = $2 WHERE id = $3 AND version_id = $4 RETURNING * ',
-                [content, subtitle, summaryId, version_id]
-            );
-        } else {
-            // Insert new summary
-            result = await pool.query(
-                'INSERT INTO summary (content, subtitle, version_id) VALUES ($1, $2, $3) RETURNING * ',
-                [content, subtitle, version_id]
+        // 3. Duplicate Contact Info
+        const origContactRes = await client.query('SELECT * FROM contact_info WHERE version_id = $1', [id]);
+        if (origContactRes.rows.length > 0) {
+            const ci = origContactRes.rows[0];
+            await client.query(
+                `INSERT INTO contact_info (version_id, name, email, phone, linkedin, github, website, subtitle, subtitle_es, profile_picture)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [newVersionId, ci.name, ci.email, ci.phone, ci.linkedin, ci.github, ci.website, ci.subtitle, ci.subtitle_es, ci.profile_picture]
             );
         }
 
-        res.json(result.rows[0]);
+        // 4. Duplicate Visibility for all sections
+        const sections = ['experience', 'education', 'project', 'skill', 'summary'];
+        for (const section of sections) {
+            const table = `version_${section}_visibility`;
+            await client.query(
+                `INSERT INTO ${table} (version_id, pool_id, is_visible)
+                 SELECT $1, pool_id, is_visible FROM ${table} WHERE version_id = $2`,
+                [newVersionId, id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ id: newVersionId, name: newName });
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
+        await client.query('ROLLBACK');
+        console.error('Duplication error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
     }
 });
 
-
-// --- Contact Info Endpoints ---
-
-// GET the global contact information (no version_id)
-app.get('/api/contact_info', async (req, res) => {
+app.post('/api/admin/versions', async (req, res) => {
+    const { name, slug } = req.body;
+    if (!name || !slug) return res.status(400).json({ error: 'Name and Slug are required' });
+    const client = await pool.connect();
     try {
-        const result = await pool.query('SELECT * FROM contact_info WHERE id = 1'); // Always fetch ID 1
-        if (result.rows.length === 0) {
-            return res.status(404).send('Contact info not found');
-        }
-        res.json(result.rows[0]);
+        await client.query('BEGIN');
+        const versionResult = await client.query('INSERT INTO resume_versions (name, slug) VALUES ($1, $2) RETURNING *', [name, slug]);
+        const newVersion = versionResult.rows[0];
+        await client.query('INSERT INTO contact_info (version_id) VALUES ($1)', [newVersion.id]);
+        await client.query('COMMIT');
+        res.status(201).json(newVersion);
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
     }
 });
 
-// PUT (update) the global contact information (no version_id)
-app.put('/api/contact_info/:id', upload.single('profile_pic'), async (req, res) => {
+app.put('/api/admin/versions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { 
+        name, slug,
+        title_experience, title_experience_es, show_experience, 
+        title_education, title_education_es, show_education, 
+        title_projects, title_projects_es, show_projects, 
+        title_skills, title_skills_es, show_skills, 
+        title_summary, title_summary_es, show_summary 
+    } = req.body;
     try {
-        const { id } = req.params;
-        const { email, phone, linkedin_url, github_url, instagram_url } = req.body; // Removed subtitle, version_id
-        let profile_pic_url = req.body.profile_pic_url; // Existing URL or empty
-
-        if (req.file) {
-            // If a new file was uploaded, use its path
-            profile_pic_url = '/uploads/' + req.file.filename;
-        }
-
         const result = await pool.query(
-            'UPDATE contact_info SET email = $1, phone = $2, linkedin_url = $3, github_url = $4, instagram_url = $5, profile_pic_url = $6 WHERE id = $7 RETURNING * ',
-            [email, phone, linkedin_url, github_url, instagram_url, profile_pic_url, id] // Removed subtitle, version_id
+            `UPDATE resume_versions SET 
+             name = $1, slug = $2,
+             title_experience = $3, title_experience_es = $4, show_experience = $5, 
+             title_education = $6, title_education_es = $7, show_education = $8, 
+             title_projects = $9, title_projects_es = $10, show_projects = $11, 
+             title_skills = $12, title_skills_es = $13, show_skills = $14, 
+             title_summary = $15, title_summary_es = $16, show_summary = $17
+             WHERE id = $18 RETURNING *`,
+            [
+                name, slug,
+                title_experience, title_experience_es, show_experience, 
+                title_education, title_education_es, show_education, 
+                title_projects, title_projects_es, show_projects, 
+                title_skills, title_skills_es, show_skills, 
+                title_summary, title_summary_es, show_summary, 
+                id
+            ]
         );
-
-        if (result.rows.length === 0) {
-            // If no existing contact_info for this ID, try to insert (upsert-like behavior)
-             const insertResult = await pool.query(
-                'INSERT INTO contact_info (id, email, phone, linkedin_url, github_url, instagram_url, profile_pic_url) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET email = $2, phone = $3, linkedin_url = $4, github_url = $5, instagram_url = $6, profile_pic_url = $7 RETURNING * ',
-                [id, email, phone, linkedin_url, github_url, instagram_url, profile_pic_url]
-            ); // Removed subtitle, version_id
-            return res.json(insertResult.rows[0]);
-        }
-
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
+        console.error('DATABASE ERROR updating version:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 
+app.delete('/api/admin/versions/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM resume_versions WHERE id = $1', [id]);
+        res.status(204).send();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// -- Contact Info --
+app.get('/api/admin/contact_info/:version_id', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM contact_info WHERE version_id = $1', [req.params.version_id]);
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/admin/contact_info/:version_id', upload.single('profile_picture'), async (req, res) => {
+    const { version_id } = req.params;
+    const { name, email, phone, linkedin, github, website, subtitle, subtitle_es } = req.body;
+    let profile_picture = req.body.existing_profile_picture;
+    if (req.file) {
+        profile_picture = '/uploads/' + req.file.filename;
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE contact_info 
+             SET name = $1, email = $2, phone = $3, linkedin = $4, github = $5, website = $6, subtitle = $7, subtitle_es = $8, profile_picture = $9
+             WHERE version_id = $10 RETURNING *`,
+            [name, email, phone, linkedin, github, website, subtitle, subtitle_es, profile_picture, version_id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('DATABASE ERROR updating contact_info:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// -- Skill Categories --
+app.get('/api/admin/skill_categories', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM skill_categories ORDER BY name');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/skill_categories', async (req, res) => {
+    const { name } = req.body;
+    try {
+        const result = await pool.query('INSERT INTO skill_categories (name) VALUES ($1) RETURNING *', [name]);
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// -- Generic Content Pool Management --
+
+const createPoolEndpoints = (section) => {
+    // Standardize naming: section = 'experience', 'education', 'project', 'skill', 'summary'
+    const plural = section === 'summary' ? 'summaries' : section + 's';
+    const poolTable = section + '_pool';
+    const detailsTable = section + '_details';
+    const visibilityTable = 'version_' + section + '_visibility';
+
+    // Get all items in the pool with their details
+    app.get(`/api/admin/${plural}`, async (req, res) => {
+        try {
+            const query = `
+                SELECT p.*, json_agg(d.*) as details
+                FROM ${poolTable} p
+                LEFT JOIN ${detailsTable} d ON p.id = d.pool_id
+                GROUP BY p.id;
+            `;
+            const result = await pool.query(query);
+            res.json(result.rows);
+        } catch (err) {
+            console.error(`DATABASE ERROR fetching ${plural}:`, err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // Create a new item in the pool
+    app.post(`/api/admin/${plural}`, async (req, res) => {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // 1. Create the entry in the pool table
+            let poolId;
+            const poolFields = Object.keys(req.body.pool || {}).filter(k => req.body.pool[k] !== undefined && req.body.pool[k] !== '');
+            
+            if (poolFields.length > 0) {
+                const poolValues = poolFields.map(k => req.body.pool[k]);
+                const poolPlaceholders = poolFields.map((_, i) => `$${i + 1}`).join(', ');
+                const poolQuery = `INSERT INTO ${poolTable} (${poolFields.join(', ')}) VALUES (${poolPlaceholders}) RETURNING id;`;
+                const poolRes = await client.query(poolQuery, poolValues);
+                poolId = poolRes.rows[0].id;
+            } else {
+                // If there are no pool fields (like in summary_pool), just insert default values
+                const poolQuery = `INSERT INTO ${poolTable} DEFAULT VALUES RETURNING id;`;
+                const poolRes = await client.query(poolQuery);
+                poolId = poolRes.rows[0].id;
+            }
+            
+            // 2. Create the details entries
+            for (const detail of req.body.details) {
+                const detailFields = Object.keys(detail);
+                const detailValues = detailFields.map(k => detail[k]);
+                const detailPlaceholders = detailFields.map((_, i) => `$${i + 2}`).join(', ');
+                const detailQuery = `INSERT INTO ${detailsTable} (pool_id, ${detailFields.join(', ')}) VALUES ($1, ${detailPlaceholders});`;
+                await client.query(detailQuery, [poolId, ...detailValues]);
+            }
+
+            await client.query('COMMIT');
+            res.status(201).json({ id: poolId });
+
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error(`Error creating ${section}:`, err);
+            res.status(500).json({ error: err.message });
+        } finally {
+            client.release();
+        }
+    });
+    
+    // Add more endpoints for pool management (update pool, add/update details, delete) as needed...
+    
+    // Delete an item from the pool
+    app.delete(`/api/admin/${plural}/:pool_id`, async (req, res) => {
+        const { pool_id } = req.params;
+        try {
+            // The ON DELETE CASCADE in the schema will handle cleaning up details and visibility
+            await pool.query(`DELETE FROM ${poolTable} WHERE id = $1`, [pool_id]);
+            res.status(204).send();
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // Update a pool item and its details
+    app.put(`/api/admin/${plural}/:pool_id`, async (req, res) => {
+        const { pool_id } = req.params;
+        const { pool: poolData, details: detailsData } = req.body;
+        
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. Update the pool table
+            const filteredPoolFields = Object.keys(poolData || {}).filter(k => poolData[k] !== undefined && poolData[k] !== '');
+            if (filteredPoolFields.length > 0) {
+                const poolValues = filteredPoolFields.map(k => poolData[k]);
+                const setClause = filteredPoolFields.map((field, i) => `${field} = $${i + 1}`).join(', ');
+                const poolQuery = `UPDATE ${poolTable} SET ${setClause} WHERE id = $${filteredPoolFields.length + 1}`;
+                await client.query(poolQuery, [...poolValues, pool_id]);
+            }
+
+            // 2. Upsert details
+            if (detailsData && Array.isArray(detailsData)) {
+                for (const detail of detailsData) {
+                    const detailFields = Object.keys(detail).filter(k => k !== 'id' && k !== 'pool_id');
+                    const detailValues = detailFields.map(k => detail[k]);
+                    
+                    if (detail.id) { // Existing detail, UPDATE it
+                        const setClause = detailFields.map((field, i) => `${field} = $${i + 1}`).join(', ');
+                        const detailQuery = `UPDATE ${detailsTable} SET ${setClause} WHERE id = $${detailFields.length + 1}`;
+                        await client.query(detailQuery, [...detailValues, detail.id]);
+                    } else { // New detail, INSERT it
+                        const placeholders = detailFields.map((_, i) => `$${i + 2}`).join(', ');
+                        const detailQuery = `INSERT INTO ${detailsTable} (pool_id, ${detailFields.join(', ')}) VALUES ($1, ${placeholders})`;
+                        await client.query(detailQuery, [pool_id, ...detailValues]);
+                    }
+                }
+            }
+
+            await client.query('COMMIT');
+            res.status(200).json({ success: true });
+
+        } catch (err) {
+            await client.query('ROLLBACK');
+            res.status(500).json({ error: err.message });
+        } finally {
+            client.release();
+        }
+    });
+};
+
+createPoolEndpoints('experience');
+createPoolEndpoints('education');
+createPoolEndpoints('project');
+createPoolEndpoints('skill');
+createPoolEndpoints('summary');
+
+
+// -- Visibility --
+
+// Get all visibilities for a version
+app.get('/api/admin/visibility/:version_id/:section', async (req, res) => {
+    const { version_id, section } = req.params;
+    const visibilityTable = `version_${section}_visibility`;
+    try {
+        const result = await pool.query(`SELECT pool_id, is_visible FROM ${visibilityTable} WHERE version_id = $1`, [version_id]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Set visibility for an item in a version
+app.put('/api/admin/visibility', async (req, res) => {
+    const { version_id, section, pool_id, is_visible } = req.body;
+    if (!version_id || !section || !pool_id || is_visible === undefined) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    const visibilityTable = `version_${section}_visibility`;
+    try {
+        const query = `
+            INSERT INTO ${visibilityTable} (version_id, pool_id, is_visible)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (version_id, pool_id)
+            DO UPDATE SET is_visible = $3;
+        `;
+        await pool.query(query, [version_id, pool_id, is_visible]);
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('DATABASE ERROR updating visibility:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Server ---
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
