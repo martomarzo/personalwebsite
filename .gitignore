@@ -6,3 +6,10 @@ backend/node_modules/
 .DS_Store
 *.log
 photos.Martin.jpg
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
