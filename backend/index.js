@@ -23,6 +23,15 @@ const pool = new Pool({
     port: process.env.DB_PORT,
 });
 
+// Test connection at startup
+pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+        console.error('CRITICAL: Database connection failed at startup!', err.message);
+    } else {
+        console.log('Database connected successfully at', res.rows[0].now);
+    }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -52,11 +61,18 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.h
 // GET a fully composed resume by its unique SLUG and language
 app.get('/api/resume/slug/:slug/:language', async (req, res) => {
     const { slug, language } = req.params;
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
         const resume = {};
+        
+        console.log(`Fetching resume for slug: ${slug}, language: ${language}`);
+        
         const slugRes = await client.query('SELECT id FROM resume_versions WHERE slug = $1', [slug]);
-        if (slugRes.rows.length === 0) return res.status(404).send('Resume version not found');
+        if (slugRes.rows.length === 0) {
+            console.warn(`Resume slug not found: ${slug}`);
+            return res.status(404).send('Resume version not found');
+        }
         const versionId = slugRes.rows[0].id;
 
         const versionQuery = `
@@ -134,10 +150,10 @@ app.get('/api/resume/slug/:slug/:language', async (req, res) => {
 
         res.json(resume);
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
+        console.error('API ERROR:', err.message);
+        res.status(500).json({ error: 'Internal Server Error', detail: err.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
