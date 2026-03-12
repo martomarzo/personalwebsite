@@ -400,34 +400,23 @@ app.post('/api/admin/skill_categories', async (req, res) => {
 
 // --- PAGE ROUTES ---
 
+// Explicit route for the admin page
 app.get('/admin', (req, res) => {
-    const filePath = path.join(__dirname, '..', 'admin.html');
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send(`Admin page not found. Looking in: ${filePath}`);
-    }
+    res.sendFile(path.resolve(__dirname, '..', 'admin.html'));
 });
 
-app.get('/admin/', (req, res) => {
-    const filePath = path.join(__dirname, '..', 'admin.html');
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send(`Admin page not found. Looking in: ${filePath}`);
-    }
-});
+// Serve all other static files (.js, .css, favicon, etc.)
+app.use(express.static(path.resolve(__dirname, '..')));
 
-// Catch-all for other static files
-app.use(express.static(path.join(__dirname, '..')));
-
+// Fallback for the root route (index.html)
 app.get('/', (req, res) => {
-    const filePath = path.join(__dirname, '..', 'index.html');
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send(`Home page not found. Looking in: ${filePath}`);
-    }
+    res.sendFile(path.resolve(__dirname, '..', 'index.html'));
+});
+
+// Final Catch-all for 404s
+app.use((req, res) => {
+    console.warn(`404 at ${req.url}`);
+    res.status(404).send('Resource not found');
 });
 
 app.listen(port, () => {
