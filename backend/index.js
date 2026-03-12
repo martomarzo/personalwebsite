@@ -82,7 +82,13 @@ app.get('/debug-info', (req, res) => {
 });
 
 // --- FILE SERVING (STATIC FIRST) ---
-// This will automatically serve admin.html if it exists, index.html, etc.
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
 app.use(express.static(path.resolve(__dirname, '..')));
 
 // Explicit page routes as fallback
