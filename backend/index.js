@@ -64,46 +64,35 @@ app.use(express.urlencoded({ extended: true }));
 
 // --- REQUEST LOGGER ---
 app.use((req, res, next) => {
-    if (!req.url.startsWith('/api')) {
-        console.log(`[REQUEST] ${req.method} ${req.url}`);
-    }
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
     next();
 });
 
-// --- PAGE ROUTES (PRIORITY) ---
-
-// Serve admin.html BEFORE any other routes
-app.get('/admin', (req, res) => {
-    const adminPath = path.resolve(__dirname, '..', 'admin.html');
-    console.log(`Serving admin from: ${adminPath}`);
-    res.sendFile(adminPath, (err) => {
-        if (err) {
-            console.error('Error sending admin.html:', err.message);
-            res.status(500).send('Error loading admin page');
-        }
+// --- DIAGNOSTIC ROUTE ---
+app.get('/debug-info', (req, res) => {
+    const rootPath = path.resolve(__dirname, '..');
+    const files = fs.readdirSync(rootPath);
+    res.json({
+        cwd: process.cwd(),
+        dirname: __dirname,
+        rootPath,
+        filesInRoot: files,
+        env: process.env.NODE_ENV
     });
 });
 
-// Serve the root index.html
-app.get('/', (req, res) => {
-    const indexPath = path.resolve(__dirname, '..', 'index.html');
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error('Error sending index.html:', err.message);
-            res.status(500).send('Error loading home page');
-        }
-    });
-});
-
-// --- FILE SERVING ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
-
-app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
+// --- FILE SERVING (STATIC FIRST) ---
+// This will automatically serve admin.html if it exists, index.html, etc.
 app.use(express.static(path.resolve(__dirname, '..')));
+
+// Explicit page routes as fallback
+app.get('/admin', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '..', 'admin.html'));
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '..', 'index.html'));
+});
 
 // --- PUBLIC API ROUTES ---
 
