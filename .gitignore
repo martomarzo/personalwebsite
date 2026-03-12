@@ -5,4 +5,5 @@ node_modules/
 backend/node_modules/
 .DS_Store
 *.log
+backend/database.sql
 photos.Martin.jpg
