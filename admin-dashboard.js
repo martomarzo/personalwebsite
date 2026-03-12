@@ -638,7 +638,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         // --- API Helpers ---
-        async apiGet(endpoint) { return (await fetch(API_BASE_URL + endpoint)).json(); },
+        async apiGet(endpoint) { 
+            const response = await fetch(API_BASE_URL + endpoint);
+            const data = await response.json();
+            if (!response.ok) {
+                this.notify(`API Error: ${data.error || 'Unknown error'}`, 'error');
+                return []; // Return empty array to prevent code crashes
+            }
+            return Array.isArray(data) ? data : [data];
+        },
         async apiPost(endpoint, data) { return (await fetch(API_BASE_URL + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json(); },
         async apiPut(endpoint, data) { return (await fetch(API_BASE_URL + endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json(); },
         async apiDelete(endpoint) { return await fetch(API_BASE_URL + endpoint, { method: 'DELETE' }); },
