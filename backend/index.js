@@ -5,6 +5,7 @@ const multer = require('multer');
 const cors = require('cors');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
+const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -31,6 +32,18 @@ pool.connect(async (err, client, release) => {
         return console.error('CRITICAL: Database connection failed!', err.message);
     }
     console.log('Database connected successfully.');
+
+    // Check for critical files at startup
+    const rootPath = path.join(__dirname, '..');
+    ['admin.html', 'index.html', 'styles.css', 'admin-dashboard.js', 'portfolio-main.js'].forEach(file => {
+        const filePath = path.join(rootPath, file);
+        if (fs.existsSync(filePath)) {
+            console.log(`✅ File found: ${file}`);
+        } else {
+            console.error(`❌ File MISSING: ${file} at ${filePath}`);
+        }
+    });
+
     try {
         const res = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
         console.log('Available tables:', res.rows.map(r => r.table_name).join(', '));
@@ -387,13 +400,35 @@ app.post('/api/admin/skill_categories', async (req, res) => {
 
 // --- PAGE ROUTES ---
 
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.html')));
-app.get('/admin/', (req, res) => res.sendFile(path.join(__dirname, '..', 'admin.html')));
+app.get('/admin', (req, res) => {
+    const filePath = path.join(__dirname, '..', 'admin.html');
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send(`Admin page not found. Looking in: ${filePath}`);
+    }
+});
 
-// Catch-all for static files
+app.get('/admin/', (req, res) => {
+    const filePath = path.join(__dirname, '..', 'admin.html');
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send(`Admin page not found. Looking in: ${filePath}`);
+    }
+});
+
+// Catch-all for other static files
 app.use(express.static(path.join(__dirname, '..')));
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'index.html')));
+app.get('/', (req, res) => {
+    const filePath = path.join(__dirname, '..', 'index.html');
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send(`Home page not found. Looking in: ${filePath}`);
+    }
+});
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
