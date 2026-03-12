@@ -62,16 +62,48 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- File Upload Setup ---
+// --- REQUEST LOGGER ---
+app.use((req, res, next) => {
+    if (!req.url.startsWith('/api')) {
+        console.log(`[REQUEST] ${req.method} ${req.url}`);
+    }
+    next();
+});
+
+// --- PAGE ROUTES (PRIORITY) ---
+
+// Serve admin.html BEFORE any other routes
+app.get('/admin', (req, res) => {
+    const adminPath = path.resolve(__dirname, '..', 'admin.html');
+    console.log(`Serving admin from: ${adminPath}`);
+    res.sendFile(adminPath, (err) => {
+        if (err) {
+            console.error('Error sending admin.html:', err.message);
+            res.status(500).send('Error loading admin page');
+        }
+    });
+});
+
+// Serve the root index.html
+app.get('/', (req, res) => {
+    const indexPath = path.resolve(__dirname, '..', 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('Error sending index.html:', err.message);
+            res.status(500).send('Error loading home page');
+        }
+    });
+});
+
+// --- FILE SERVING ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage });
 
-// Static files (must be before routes if you want them to take precedence, 
-// but we want API routes to take precedence, so we put them AFTER API routes or use specific paths)
-app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
+app.use(express.static(path.resolve(__dirname, '..')));
 
 // --- PUBLIC API ROUTES ---
 
