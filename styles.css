@@ -248,11 +248,13 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: color 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  font-size: 1.8rem;
 }
 
 .page-portfolio .contact-info a:hover {
   color: var(--accent-color);
+  transform: translateY(-3px);
 }
 
 .page-portfolio .resume-nav {
@@ -789,4 +791,123 @@ body.dark-mode .skill-name {
 @media print {
     .page-server-info body { margin: 0; }
     .page-server-info .no-print { display: none; }
+}
+
+/* ==========================================================================
+   6. Node-Centric Server Info Styles
+   ========================================================================== */
+
+.node-container {
+    margin-bottom: 40px;
+}
+
+.node-intro {
+    font-size: 1.1rem;
+    color: var(--text-light);
+    margin-bottom: 30px;
+    max-width: 800px;
+}
+
+.node-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+}
+
+@media (min-width: 1024px) {
+    .node-grid {
+        grid-template-columns: 350px 1fr;
+    }
+}
+
+.node-specs h3, .node-services h3 {
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.specs-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+.spec-card {
+    background: var(--card-bg);
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+
+.spec-card i {
+    font-size: 1.5rem;
+    color: var(--accent-color);
+    width: 30px;
+    text-align: center;
+}
+
+.spec-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.spec-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-light);
+    letter-spacing: 1px;
+}
+
+.spec-value {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.services-table-wrapper {
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+
+.services-table-wrapper table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.services-table-wrapper th {
+    background: var(--bg-color);
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.services-table-wrapper td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.platform-tag {
+    background: var(--secondary-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+body.dark-mode .platform-tag {
+    background: var(--primary-color);
 }

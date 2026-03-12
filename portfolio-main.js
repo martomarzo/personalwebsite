@@ -15,10 +15,151 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (document.body.classList.contains('page-server-info')) {
+                this.loadServerInfo();
                 this.updatePageDates();
                 this.initScrollAnimations();
                 this.initDarkMode();
                 this.setupSmartReturnLink();
+            }
+        },
+
+        async loadServerInfo() {
+            const main = document.querySelector('main');
+            if (!main) return;
+
+            try {
+                const response = await fetch('/api/server-info');
+                const sections = await response.json();
+
+                if (!sections || sections.length === 0) {
+                    main.innerHTML = '<p>No server information available.</p>';
+                    return;
+                }
+
+                main.innerHTML = ''; // Clear hardcoded content
+
+                sections.forEach(section => {
+                    const sectionEl = document.createElement('section');
+                    sectionEl.id = section.title.toLowerCase().replace(/ /g, '-');
+                    sectionEl.className = 'fade-in-up';
+                    
+                    let html = `<h2><i class="${section.icon || 'fas fa-info-circle'}"></i> ${section.title}</h2>`;
+                    
+                    if (section.layout_type === 'text') {
+                        html += `
+                            <div class="experience-item">
+                                <p>${section.description || ''}</p>
+                            </div>
+                        `;
+                    } else if (section.layout_type === 'node') {
+                        const specs = section.items.filter(i => i.item_type === 'spec');
+                        const services = section.items.filter(i => i.item_type === 'service');
+
+                        html += `
+                            <div class="node-container">
+                                ${section.description ? `<p class="node-intro">${section.description}</p>` : ''}
+                                
+                                <div class="node-grid">
+                                    <div class="node-specs">
+                                        <h3><i class="fas fa-microchip"></i> Hardware Specs</h3>
+                                        <div class="specs-grid">
+                                            ${specs.map(spec => `
+                                                <div class="spec-card">
+                                                    <i class="${spec.icon || 'fas fa-info-circle'}"></i>
+                                                    <div class="spec-info">
+                                                        <span class="spec-label">${spec.title}</span>
+                                                        <span class="spec-value">${spec.content}</span>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div class="node-services">
+                                        <h3><i class="fas fa-project-diagram"></i> Running Services</h3>
+                                        <div class="services-table-wrapper">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Service</th>
+                                                        <th>Type</th>
+                                                        <th>Role/Function</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${services.map(svc => `
+                                                        <tr>
+                                                            <td><strong>${svc.title}</strong></td>
+                                                            <td><span class="platform-tag">${svc.platform || 'VM'}</span></td>
+                                                            <td>${svc.function || svc.content}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (section.layout_type === 'grid') {
+                        html += `
+                            <div class="skills-container">
+                                ${section.items.map(item => `
+                                    <div class="skill-category">
+                                        <h3>${item.title}</h3>
+                                        <p>${item.content || ''}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else if (section.layout_type === 'table') {
+                        html += `
+                            <div class="experience-item" style="overflow-x: auto;">
+                                ${section.description ? `<p style="margin-bottom: 20px;">${section.description}</p>` : ''}
+                                <table style="width: 100%;">
+                                    <thead>
+                                        <tr>
+                                            <th>Service</th>
+                                            <th>Platform</th>
+                                            <th>Primary Function</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${section.items.map(item => `
+                                            <tr>
+                                                <td>${item.title}</td>
+                                                <td>${item.platform || ''}</td>
+                                                <td>${item.function || ''}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    } else { // 'list'
+                        html += `
+                            <div class="experience-item">
+                                ${section.description ? `<p style="margin-bottom: 15px;">${section.description}</p>` : ''}
+                                <div class="experience-description">
+                                    <ul>
+                                        ${section.items.map(item => `
+                                            <li><strong>${item.title}:</strong> ${item.content || ''}</li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    sectionEl.innerHTML = html;
+                    main.appendChild(sectionEl);
+                });
+
+                // Re-trigger scroll animations for newly added elements
+                this.initScrollAnimations();
+
+            } catch (err) {
+                console.error('Error loading server info:', err);
             }
         },
 
@@ -356,26 +497,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const profileName = document.querySelector('header h1');
 
             if (headerContact) {
-                headerContact.innerHTML = (
-                    `
-                    ${versionData.email ? `<a href="mailto:${versionData.email}"><i class="fas fa-envelope"></i> ${versionData.email}</a>` : ''}
-                    ${versionData.phone ? `<a href="tel:${versionData.phone}"><i class="fas fa-phone"></i> ${versionData.phone}</a>` : ''}
-                `
-                );
+                headerContact.innerHTML = `
+                    ${versionData.email ? `<a href="mailto:${versionData.email}" title="${versionData.email}"><i class="fas fa-envelope"></i></a>` : ''}
+                    ${versionData.phone ? `<a href="tel:${versionData.phone}" title="${versionData.phone}"><i class="fas fa-phone"></i></a>` : ''}
+                    ${versionData.linkedin ? `<a href="${versionData.linkedin}" target="_blank" rel="noopener" title="LinkedIn"><i class="fab fa-linkedin"></i></a>` : ''}
+                    ${versionData.github ? `<a href="${versionData.github}" target="_blank" rel="noopener" title="GitHub"><i class="fab fa-github"></i></a>` : ''}
+                    ${versionData.website ? `<a href="${versionData.website}" target="_blank" rel="noopener" title="Website"><i class="fas fa-globe"></i></a>` : ''}
+                `;
             }
 
             if (footerSocial) {
-                footerSocial.innerHTML = (
-                    `
-                    ${versionData.linkedin ? `<a href="${versionData.linkedin}" target="_blank" rel="noopener"><i class="fab fa-linkedin"></i></a>` : ''}
-                    ${versionData.github ? `<a href="${versionData.github}" target="_blank" rel="noopener"><i class="fab fa-github"></i></a>` : ''}
-                    ${versionData.website ? `<a href="${versionData.website}" target="_blank" rel="noopener"><i class="fas fa-globe"></i></a>` : ''}
-                `
-                );
+                footerSocial.innerHTML = ''; // Moved to header
             }
 
-            if (profilePic && versionData.profile_picture) {
-                profilePic.src = versionData.profile_picture;
+            if (profilePic) {
+                profilePic.src = versionData.profile_picture || 'photos/Martin.jpg';
             }
             
             if (profileName && versionData.contact_name) {
@@ -434,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateFooterCopyrightYear() {
             const el = document.querySelector('.page-portfolio .footer-text');
-            if (el) el.textContent = `© ${new Date().getFullYear()} Martín Marzorati. All rights reserved.`;
+            if (el) el.textContent = `Made with ❤️ by Me. Last Update: ${new Date().getFullYear()}`;
         },
 
         initSkillBarsAnimation() {

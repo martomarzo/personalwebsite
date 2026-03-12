@@ -17,7 +17,9 @@ DROP TABLE IF EXISTS
     summary_pool,
     skill_categories,
     contact_info,
-    resume_versions
+    resume_versions,
+    server_items,
+    server_sections
 CASCADE;
 
 -- Core Tables
@@ -78,3 +80,26 @@ CREATE TABLE version_skill_visibility (version_id INTEGER NOT NULL REFERENCES re
 CREATE TABLE summary_pool (id SERIAL PRIMARY KEY);
 CREATE TABLE summary_details (id SERIAL PRIMARY KEY, pool_id INTEGER NOT NULL REFERENCES summary_pool(id) ON DELETE CASCADE, language VARCHAR(10) NOT NULL, content TEXT, UNIQUE(pool_id, language));
 CREATE TABLE version_summary_visibility (version_id INTEGER NOT NULL REFERENCES resume_versions(id) ON DELETE CASCADE, pool_id INTEGER NOT NULL REFERENCES summary_pool(id) ON DELETE CASCADE, is_visible BOOLEAN DEFAULT true, PRIMARY KEY (version_id, pool_id));
+
+-- Server Info Management
+CREATE TABLE server_sections (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    icon VARCHAR(100),
+    description TEXT,
+    layout_type VARCHAR(50) DEFAULT 'list', -- 'text', 'list', 'grid', 'table'
+    display_order INTEGER DEFAULT 0,
+    is_visible BOOLEAN DEFAULT true
+);
+
+CREATE TABLE server_items (
+    id SERIAL PRIMARY KEY,
+    section_id INTEGER REFERENCES server_sections(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT,
+    icon VARCHAR(100),
+    platform VARCHAR(100), -- for table rows
+    function VARCHAR(255), -- for table rows
+    display_order INTEGER DEFAULT 0,
+    is_visible BOOLEAN DEFAULT true
+);

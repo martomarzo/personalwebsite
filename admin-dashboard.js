@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pools: { experience: [], education: [], project: [], skill: [], summary: [] },
             visibility: { experience: new Set(), education: new Set(), project: new Set(), skill: new Set(), summary: new Set() },
             skillCategories: [],
+            serverSections: [],
             sortConfig: { field: null, direction: 'asc' }
         },
 
@@ -36,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsManager: document.getElementById('version-settings-manager'),
             currentVersionNameSpan: document.getElementById('current-version-name'),
             settingsForm: document.getElementById('version-settings-form'),
-            contentTabs: document.querySelector('.content-tabs'),
+            contentTabs: document.getElementById('tabs'),
             contentPoolContainer: document.getElementById('content-pool-container'),
             modal: document.getElementById('item-modal'),
             modalTitle: document.getElementById('modal-title'),
@@ -69,6 +70,33 @@ document.addEventListener('DOMContentLoaded', () => {
             summary: {
                 pool: {},
                 details: { language: 'text', content: 'textarea' }
+            },
+            server_section: {
+                title: 'text',
+                icon: 'text',
+                description: 'textarea',
+                layout_type: { type: 'select', options: [
+                    { value: 'list', label: 'List' },
+                    { value: 'text', label: 'Simple Text' },
+                    { value: 'grid', label: 'Grid/Cards' },
+                    { value: 'table', label: 'Table' },
+                    { value: 'node', label: 'Proxmox Node (Split Specs/Services)' }
+                ]},
+                display_order: 'number',
+                is_visible: 'checkbox'
+            },
+            server_item: {
+                item_type: { type: 'select', options: [
+                    { value: 'service', label: 'Service (VM/LXC)' },
+                    { value: 'spec', label: 'Hardware Spec' }
+                ]},
+                title: 'text',
+                content: 'textarea',
+                icon: 'text',
+                platform: 'text',
+                function: 'text',
+                display_order: 'number',
+                is_visible: 'checkbox'
             }
         },
 
@@ -83,19 +111,41 @@ document.addEventListener('DOMContentLoaded', () => {
             this.elements.settingsForm.addEventListener('submit', (e) => this.handleSettingsSave(e));
             this.elements.modalCancelBtn.addEventListener('click', () => this.closeModal());
             
+            // Logout listener
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => this.handleLogout());
+            }
+
             // Delegated event listeners
             this.elements.contentPoolContainer.addEventListener('click', (e) => this.handleContentActionEvent(e));
             this.elements.versionsList.addEventListener('click', (e) => this.handleVersionAction(e));
         },
 
+        async handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await fetch('/api/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                } catch (err) {
+                    this.notify('Logout failed', 'error');
+                }
+            }
+        },
+
         async loadInitialData() {
             await this.loadVersions();
             await this.loadSkillCategories();
+            await this.loadServerSections();
             if (this.state.versions.length > 0) {
                 this.setActiveVersion(this.state.versions[0].id);
             }
             await this.loadAllPools();
             this.renderActiveTabContent();
+        },
+
+        async loadServerSections() {
+            this.state.serverSections = await this.apiGet('/server-sections');
         },
 
         // --- Data Loading ---
@@ -126,19 +176,25 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         async loadVersionSettings() {
             const version = this.state.versions.find(v => v.id === this.state.currentVersionId);
-            const contactInfo = await this.apiGet(`/contact_info/${this.state.currentVersionId}`);
+            const contactInfoResponse = await this.apiGet(`/contact_info/${this.state.currentVersionId}`);
+            // apiGet always returns an array, so we take the first element
+            const contactInfo = Array.isArray(contactInfoResponse) ? contactInfoResponse[0] : contactInfoResponse;
             
             this.elements.currentVersionNameSpan.textContent = `"${version.name}"`;
             this.elements.settingsForm.querySelectorAll('[data-field]').forEach(el => {
                 const field = el.dataset.field;
                 el[el.type === 'checkbox' ? 'checked' : 'value'] = version[field] || (el.type === 'checkbox' ? false : '');
             });
-            Object.keys(contactInfo).forEach(key => {
-                const el = this.elements.settingsForm.querySelector(`#contact-${key}`);
-                if (el) el.value = contactInfo[key] || '';
-            });
-            const picPreview = this.elements.settingsForm.querySelector('#current-profile-pic-preview');
-            picPreview.innerHTML = contactInfo.profile_picture ? `<img src="${contactInfo.profile_picture}" alt="Profile Picture">` : '';
+
+            if (contactInfo) {
+                Object.keys(contactInfo).forEach(key => {
+                    const el = this.elements.settingsForm.querySelector(`#contact-${key}`);
+                    if (el) el.value = contactInfo[key] || '';
+                });
+                const picPreview = this.elements.settingsForm.querySelector('#current-profile-pic-preview');
+                picPreview.innerHTML = contactInfo.profile_picture ? `<img src="${contactInfo.profile_picture}" alt="Profile Picture">` : '';
+            }
+
             this.elements.settingsManager.classList.remove('hidden');
         },
         async loadVisibility() {
@@ -186,7 +242,197 @@ document.addEventListener('DOMContentLoaded', () => {
         renderActiveTabContent() {
             const activeTab = this.elements.contentTabs.querySelector('.active');
             if (activeTab) {
-                this.renderContentPool(activeTab.dataset.tab);
+                const tab = activeTab.dataset.tab;
+                if (tab === 'server') {
+                    this.renderServerTab();
+                } else {
+                    this.renderContentPool(tab);
+                }
+            }
+        },
+
+        async renderServerTab() {
+            let html = `
+                <div class="server-tab-header">
+                    <h2>Server Info Management</h2>
+                    <button class="btn-primary" id="add-server-section-btn">Add New Section</button>
+                </div>
+                <div class="server-sections-list">
+            `;
+
+            if (this.state.serverSections.length === 0) {
+                html += '<p>No server sections found.</p>';
+            } else {
+                for (const section of this.state.serverSections) {
+                    const items = await this.apiGet(`/server-items/${section.id}`);
+                    html += `
+                        <div class="server-section-card" data-section-id="${section.id}">
+                            <div class="section-card-header">
+                                <div class="section-info">
+                                    <i class="${section.icon || 'fas fa-server'}"></i>
+                                    <h3>${section.title}</h3>
+                                    <span class="badge">${section.layout_type}</span>
+                                </div>
+                                <div class="section-actions">
+                                    <button class="btn-icon edit-section-btn" title="Edit Section"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-icon delete-section-btn" title="Delete Section"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <div class="section-card-content">
+                                <p>${section.description || 'No description'}</p>
+                                <div class="section-items">
+                                    <h4>Items</h4>
+                                    <button class="btn-small add-server-item-btn" data-section-id="${section.id}">Add Item</button>
+                                    <table class="small-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Title</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${items.map(item => `
+                                                <tr data-item-id="${item.id}">
+                                                    <td><span class="badge ${item.item_type}">${item.item_type}</span></td>
+                                                    <td>${item.title}</td>
+                                                    <td>
+                                                        <button class="btn-icon edit-item-btn"><i class="fas fa-edit"></i></button>
+                                                        <button class="btn-icon delete-item-btn"><i class="fas fa-trash"></i></button>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            html += '</div>';
+            this.elements.contentPoolContainer.innerHTML = html;
+
+            // Bind events for the new content
+            document.getElementById('add-server-section-btn').addEventListener('click', () => this.showServerModal('server_section'));
+            this.elements.contentPoolContainer.querySelectorAll('.edit-section-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.closest('.server-section-card').dataset.sectionId;
+                    this.showServerModal('server_section', parseInt(id));
+                });
+            });
+            this.elements.contentPoolContainer.querySelectorAll('.delete-section-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.closest('.server-section-card').dataset.sectionId;
+                    this.handleDeleteServer('server-sections', parseInt(id));
+                });
+            });
+            this.elements.contentPoolContainer.querySelectorAll('.add-server-item-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const sectionId = e.target.dataset.sectionId;
+                    this.showServerModal('server_item', null, parseInt(sectionId));
+                });
+            });
+            this.elements.contentPoolContainer.querySelectorAll('.edit-item-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const itemId = e.target.closest('tr').dataset.itemId;
+                    const sectionId = e.target.closest('.server-section-card').dataset.sectionId;
+                    this.showServerModal('server_item', parseInt(itemId), parseInt(sectionId));
+                });
+            });
+            this.elements.contentPoolContainer.querySelectorAll('.delete-item-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const itemId = e.target.closest('tr').dataset.itemId;
+                    this.handleDeleteServer('server-items', parseInt(itemId));
+                });
+            });
+        },
+
+        async showServerModal(type, id = null, sectionId = null) {
+            this.elements.modalTitle.textContent = `${id ? 'Edit' : 'Add'} ${type.replace('_', ' ')}`;
+            const item = id ? (type === 'server_section' ? 
+                this.state.serverSections.find(s => s.id === id) : 
+                (await this.apiGet(`/server-items/${sectionId}`)).find(i => i.id === id)) : null;
+
+            let html = `<input type="hidden" id="server-type" value="${type}">`;
+            if (id) html += `<input type="hidden" id="server-id" value="${id}">`;
+            if (sectionId) html += `<input type="hidden" id="server-section-id" value="${sectionId}">`;
+
+            Object.entries(this.formDefinitions[type]).forEach(([field, config]) => {
+                const value = item ? item[field] : '';
+                html += `<div class="form-group"><label>${field}</label>`;
+                
+                if (typeof config === 'object' && config.type === 'select') {
+                    html += `<select name="${field}">`;
+                    config.options.forEach(opt => {
+                        html += `<option value="${opt.value}" ${value == opt.value ? 'selected' : ''}>${opt.label}</option>`;
+                    });
+                    html += `</select>`;
+                } else if (config === 'textarea') {
+                    html += `<textarea name="${field}">${value || ''}</textarea>`;
+                } else if (config === 'checkbox') {
+                    html += `<input type="checkbox" name="${field}" ${value ? 'checked' : ''}>`;
+                } else {
+                    html += `<input type="${config}" name="${field}" value="${value || ''}">`;
+                }
+                html += `</div>`;
+            });
+
+            this.elements.modalForm.innerHTML = html;
+            this.elements.modal.classList.remove('hidden');
+
+            // Replace save listener
+            const newSaveBtn = this.elements.modalSaveBtn.cloneNode(true);
+            this.elements.modalSaveBtn.replaceWith(newSaveBtn);
+            this.elements.modalSaveBtn = newSaveBtn;
+            this.elements.modalSaveBtn.addEventListener('click', () => this.handleServerSave());
+        },
+
+        async handleServerSave() {
+            const form = this.elements.modalForm;
+            const type = form.querySelector('#server-type').value;
+            const id = form.querySelector('#server-id')?.value;
+            const sectionId = form.querySelector('#server-section-id')?.value;
+            const endpoint = type === 'server_section' ? 'server-sections' : 'server-items';
+
+            const data = {};
+            if (sectionId) data.section_id = parseInt(sectionId);
+            
+            Object.keys(this.formDefinitions[type]).forEach(field => {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (input.type === 'checkbox') {
+                    data[field] = input.checked;
+                } else if (input.type === 'number') {
+                    data[field] = parseInt(input.value) || 0;
+                } else {
+                    data[field] = input.value;
+                }
+            });
+
+            try {
+                if (id) {
+                    await this.apiPut(`/${endpoint}/${id}`, data);
+                } else {
+                    await this.apiPost(`/${endpoint}`, data);
+                }
+                this.closeModal();
+                await this.loadServerSections();
+                this.renderActiveTabContent();
+            } catch (err) {
+                this.notify('Save failed', 'error');
+            }
+        },
+
+        async handleDeleteServer(endpoint, id) {
+            if (confirm(`Are you sure you want to delete this ${endpoint.slice(0, -1)}?`)) {
+                try {
+                    await this.apiDelete(`/${endpoint}/${id}`);
+                    await this.loadServerSections();
+                    this.renderActiveTabContent();
+                } catch (err) {
+                    this.notify('Delete failed', 'error');
+                }
             }
         },
         renderContentPool(section) {
@@ -371,10 +617,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         handleTabClick(e) {
-            if (e.target.matches('.tab-link')) {
+            if (e.target.matches('.tab-btn')) {
                 this.elements.contentTabs.querySelector('.active').classList.remove('active');
                 e.target.classList.add('active');
-                this.renderContentPool(e.target.dataset.tab);
+                this.renderActiveTabContent();
             }
         },
         async handleVisibilityToggle(e, section) {
@@ -640,17 +886,57 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- API Helpers ---
         async apiGet(endpoint) { 
             const response = await fetch(API_BASE_URL + endpoint);
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return [];
+            }
             const data = await response.json();
             if (!response.ok) {
                 this.notify(`API Error: ${data.error || 'Unknown error'}`, 'error');
-                return []; // Return empty array to prevent code crashes
+                return []; 
             }
             return Array.isArray(data) ? data : [data];
         },
-        async apiPost(endpoint, data) { return (await fetch(API_BASE_URL + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json(); },
-        async apiPut(endpoint, data) { return (await fetch(API_BASE_URL + endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json(); },
-        async apiDelete(endpoint) { return await fetch(API_BASE_URL + endpoint, { method: 'DELETE' }); },
-        async apiPutFormData(endpoint, formData) { return (await fetch(API_BASE_URL + endpoint, { method: 'PUT', body: formData })).json(); },
+        async apiPost(endpoint, data) { 
+            const response = await fetch(API_BASE_URL + endpoint, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(data) 
+            });
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return response.json();
+        },
+        async apiPut(endpoint, data) { 
+            const response = await fetch(API_BASE_URL + endpoint, { 
+                method: 'PUT', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(data) 
+            });
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return response.json();
+        },
+        async apiDelete(endpoint) { 
+            const response = await fetch(API_BASE_URL + endpoint, { method: 'DELETE' }); 
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return response;
+        },
+        async apiPutFormData(endpoint, formData) { 
+            const response = await fetch(API_BASE_URL + endpoint, { method: 'PUT', body: formData }); 
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            return response.json();
+        },
     };
 
     AdminApp.init();
