@@ -9,10 +9,21 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // --- Database Setup ---
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
+const dbConfig = {
+    connectionString: process.env.DATABASE_URL || process.env.INTERNAL_DATABASE_URL,
+    ssl: (process.env.DATABASE_URL || process.env.INTERNAL_DATABASE_URL) ? { rejectUnauthorized: false } : false,
+    max: 5, // Render Free Tier limit is 5 connections
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+};
+
+// Log connection info (masking password)
+if (dbConfig.connectionString) {
+    const masked = dbConfig.connectionString.replace(/:([^:@]+)@/, ':****@');
+    console.log(`Attempting to connect to: ${masked}`);
+}
+
+const pool = new Pool(dbConfig);
 
 // Test connection and check tables
 pool.connect(async (err, client, release) => {
@@ -141,15 +152,19 @@ app.get('/api/resume/slug/:slug/:language', async (req, res) => {
 
 // --- ADMIN API ROUTES ---
 
-// Versions Management
+// Admin Versions Management
 app.get('/api/admin/versions', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM resume_versions ORDER BY name');
         res.json(result.rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('DATABASE ERROR on /api/admin/versions:', err.message);
+        res.status(500).json({ error: err.message, hint: 'Check if resume_versions table exists' });
     }
 });
+
+// Favicon fix
+app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'photos', 'favicon.ico')));
 
 app.post('/api/admin/versions', async (req, res) => {
     const { name, slug } = req.body;
