@@ -13,8 +13,11 @@
   --font-family-portfolio: 'Montserrat', sans-serif;
   --font-family-server: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   --bg-color: #f8f9fa;
+  --bg-even: #fdfdfd;
   --card-bg: #ffffff;
   --nav-bg: rgba(255, 255, 255, 0.85);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --border-color: rgba(0, 0, 0, 0.03);
 }
 
 body.dark-mode {
@@ -26,13 +29,20 @@ body.dark-mode {
   --text-color: #ecf0f1;
   --text-light: #bdc3c7;
   --bg-color: #121212;
+  --bg-even: #181818;
   --card-bg: #1e1e1e;
   --nav-bg: rgba(18, 18, 18, 0.9);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --border-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Fix Header in Dark Mode */
+/* Fix Header & Footer in Dark Mode */
 body.dark-mode .page-portfolio header {
     background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%) !important;
+}
+
+body.dark-mode .page-portfolio footer {
+    background-color: #0a0a0a;
 }
 
 body.dark-mode h1, 
@@ -246,10 +256,10 @@ body {
 }
 
 .page-portfolio .resume-nav {
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: var(--nav-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 15px var(--shadow-color);
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -270,7 +280,7 @@ body {
 }
 
 .page-portfolio .nav-container a:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: var(--border-color);
   color: var(--accent-color);
 }
 
@@ -299,7 +309,7 @@ body {
 }
 
 .page-portfolio section:nth-child(even) {
-  background-color: #fdfdfd;
+  background-color: var(--bg-even);
 }
 
 .page-portfolio h2 {
@@ -333,14 +343,14 @@ body {
   background-color: var(--card-bg);
   padding: 40px;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px var(--shadow-color);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   color: var(--text-color);
 }
 
 .page-portfolio .experience-item:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 25px var(--shadow-color);
 }
 
 .page-portfolio .experience-item:last-child {
@@ -418,9 +428,9 @@ body {
 }
 
 .page-portfolio .skill-category {
-  background-color: white;
+  background-color: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px var(--shadow-color);
   padding: 35px;
 }
 
@@ -447,7 +457,7 @@ body {
 }
 
 .page-portfolio .skill-level-bar {
-  background-color: #e0e0e0;
+  background-color: var(--bg-color);
   height: 12px;
   border-radius: 6px;
   width: 100%;
@@ -498,11 +508,11 @@ body {
   background-color: var(--card-bg);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px var(--shadow-color);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;       
   flex-direction: column; 
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
 }
 
 .page-portfolio .project-content {
@@ -718,14 +728,14 @@ body.dark-mode .skill-name {
   }
   .page-portfolio .skill-category:hover {
     transform: translateY(-12px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 32px var(--shadow-color);
   }
   .page-portfolio .project-card {
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   }
   .page-portfolio .project-card:hover {
   transform: translateY(-12px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15), 0 0 15px var(--accent-color, #e67e22);
+  box-shadow: 0 12px 32px var(--shadow-color), 0 0 15px var(--accent-color, #e67e22);
   }
   .page-portfolio .btn {
     transition: background-color 0.3s ease, transform 0.2s ease;
