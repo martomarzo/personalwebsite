@@ -4,66 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - Martín Marzorati</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin.css">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f7f6;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .login-card h1 {
-            margin-bottom: 30px;
-            color: #2c3e50;
-            font-size: 1.8rem;
-        }
-        .login-card input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        .login-card button {
-            width: 100%;
-            padding: 12px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .login-card button:hover {
-            background-color: #2980b9;
-        }
-        .error-message {
-            color: #e74c3c;
-            margin-bottom: 20px;
-            display: none;
-            font-size: 0.9rem;
-        }
-    </style>
+    <script>
+        const saved = localStorage.getItem('theme-mode');
+        if (saved === 'light') document.documentElement.classList.add('light-mode');
+    </script>
 </head>
-<body>
+<body class="login-page-body">
     <div class="login-card">
         <h1>Admin Panel</h1>
+        <p>Enter your password to continue</p>
         <div id="error" class="error-message">Invalid password</div>
         <form id="login-form">
             <input type="password" id="password" placeholder="Password" required autofocus>
@@ -76,7 +30,7 @@
             e.preventDefault();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('error');
-            
+
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',

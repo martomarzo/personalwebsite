@@ -1,4 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme toggle
+    const themeBtn = document.getElementById('admin-theme-toggle');
+    const updateThemeIcon = () => {
+        const isLight = document.documentElement.classList.contains('light-mode');
+        themeBtn.innerHTML = isLight ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+    };
+    updateThemeIcon();
+    themeBtn.addEventListener('click', () => {
+        document.documentElement.classList.toggle('light-mode');
+        const isLight = document.documentElement.classList.contains('light-mode');
+        localStorage.setItem('theme-mode', isLight ? 'light' : 'dark');
+        updateThemeIcon();
+    });
+
     const API_BASE_URL = '/api/admin';
 
     const AdminApp = {
