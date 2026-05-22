@@ -6,10 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.body.classList.contains('page-portfolio')) {
                 this.handleNavLinks();
                 this.updateActiveNavLinkOnScroll();
-                this.initSkillBarsAnimation();
                 this.updateFooterCopyrightYear();
                 this.loadPortfolioContent();
-                this.initScrollAnimations();
                 this.initDarkMode();
                 this.initLanguageSwitcher();
             }
@@ -17,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.body.classList.contains('page-server-info')) {
                 this.loadServerInfo();
                 this.updatePageDates();
-                this.initScrollAnimations();
                 this.initDarkMode();
                 this.setupSmartReturnLink();
             }
@@ -41,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sections.forEach(section => {
                     const sectionEl = document.createElement('section');
                     sectionEl.id = section.title.toLowerCase().replace(/ /g, '-');
-                    sectionEl.className = 'fade-in-up';
+                    sectionEl.className = '';
                     
                     let html = `<h2><i class="${section.icon || 'fas fa-info-circle'}"></i> ${section.title}</h2>`;
                     
@@ -155,8 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     main.appendChild(sectionEl);
                 });
 
-                // Re-trigger scroll animations for newly added elements
-                this.initScrollAnimations();
+                // (scroll animations handled globally)
 
             } catch (err) {
                 console.error('Error loading server info:', err);
@@ -199,39 +195,74 @@ document.addEventListener('DOMContentLoaded', () => {
         initDarkMode() {
             const toggle = document.createElement('button');
             toggle.className = 'theme-toggle';
-            toggle.innerHTML = '<i class="fas fa-moon"></i>';
             document.body.appendChild(toggle);
 
-            const isDark = localStorage.getItem('dark-mode') === 'true';
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                toggle.innerHTML = '<i class="fas fa-sun"></i>';
-            }
+            const updateIcon = () => {
+                const isLight = document.documentElement.classList.contains('light-mode');
+                toggle.innerHTML = isLight
+                    ? '<i class="fas fa-moon"></i>'
+                    : '<i class="fas fa-sun"></i>';
+            };
+
+            updateIcon();
 
             toggle.addEventListener('click', () => {
-                document.body.classList.toggle('dark-mode');
-                const darkNow = document.body.classList.contains('dark-mode');
-                localStorage.setItem('dark-mode', darkNow);
-                toggle.innerHTML = darkNow ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+                document.documentElement.classList.toggle('light-mode');
+                const isLight = document.documentElement.classList.contains('light-mode');
+                localStorage.setItem('theme-mode', isLight ? 'light' : 'dark');
+                updateIcon();
             });
         },
 
-        initScrollAnimations() {
-            const observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, { threshold: 0.1 });
+        initHeroAnimations() {
+            if (typeof gsap === 'undefined') return;
+            gsap.registerPlugin(ScrollTrigger);
 
-            // Wait for content to be rendered before observing
-            setTimeout(() => {
-                document.querySelectorAll('section, .experience-item, .project-card, .skill-category').forEach(el => {
-                    el.classList.add('fade-in-up');
-                    observer.observe(el);
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+            tl.from('.page-portfolio .profile-pic', { opacity: 0, scale: 0.88, duration: 0.7 })
+              .from('.page-portfolio h1',           { opacity: 0, y: 20, duration: 0.5 }, '-=0.3')
+              .from('.page-portfolio .subtitle',    { opacity: 0, y: 14, duration: 0.45 }, '-=0.25')
+              .from('.page-portfolio .contact-info a', { opacity: 0, y: 10, stagger: 0.08, duration: 0.4 }, '-=0.2');
+        },
+
+        initScrollTriggerAnimations() {
+            if (typeof gsap === 'undefined') return;
+
+            // Section headings slide in from left
+            document.querySelectorAll('.page-portfolio h2').forEach(el => {
+                gsap.from(el, {
+                    opacity: 0, x: -24, duration: 0.6, ease: 'power2.out',
+                    scrollTrigger: { trigger: el, start: 'top 86%', toggleActions: 'play none none none' }
                 });
-            }, 500);
+            });
+
+            // Cards stagger in
+            const cardSelectors = [
+                '.page-portfolio .experience-item',
+                '.page-portfolio .education-item'
+            ];
+            cardSelectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach((el, i) => {
+                    gsap.from(el, {
+                        opacity: 0, y: 30, duration: 0.55, ease: 'power2.out',
+                        delay: (i % 2) * 0.08,
+                        scrollTrigger: { trigger: el, start: 'top 89%', toggleActions: 'play none none none' }
+                    });
+                });
+            });
+
+            // Project cards batch
+            if (ScrollTrigger.batch) {
+                ScrollTrigger.batch('.page-portfolio .project-card', {
+                    onEnter: batch => gsap.from(batch, { opacity: 0, y: 30, duration: 0.55, ease: 'power2.out', stagger: 0.1 }),
+                    start: 'top 89%'
+                });
+
+                ScrollTrigger.batch('.page-portfolio .skill-category', {
+                    onEnter: batch => gsap.from(batch, { opacity: 0, y: 24, duration: 0.5, ease: 'power2.out', stagger: 0.08 }),
+                    start: 'top 89%'
+                });
+            }
         },
 
         async loadPortfolioContent() {
@@ -264,14 +295,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.updateNavTranslations(language);
                 this.updateSectionTitles(resumeData.version);
                 this.updateSectionVisibility(resumeData.version);
-                this.renderContactInfo(resumeData.version); 
+                this.renderContactInfo(resumeData.version);
+                this.initHeroAnimations();
                 this.renderSummary(resumeData.summary, resumeData.version);
                 this.renderExperience(resumeData.experience || []);
                 this.renderEducation(resumeData.education || []);
                 this.renderProjects(resumeData.projects || []);
                 this.renderSkills(resumeData.skills || []);
-
-                // Re-initialize animations after content is rendered
+                this.initScrollTriggerAnimations();
                 this.initSkillBarsAnimation();
 
             } catch (error) {
@@ -574,16 +605,25 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         initSkillBarsAnimation() {
-            const observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const level = entry.target.getAttribute('data-level');
-                        entry.target.style.width = `${level}%`;
-                        observer.unobserve(entry.target);
-                    }
+            if (typeof gsap !== 'undefined') {
+                document.querySelectorAll('.page-portfolio .skill-fill').forEach(fill => {
+                    const level = fill.getAttribute('data-level') || 0;
+                    gsap.to(fill, {
+                        width: `${level}%`,
+                        duration: 1.1,
+                        ease: 'power2.out',
+                        scrollTrigger: {
+                            trigger: fill,
+                            start: 'top 90%',
+                            toggleActions: 'play none none none'
+                        }
+                    });
                 });
-            }, { threshold: 0.1 });
-            document.querySelectorAll('.page-portfolio .skill-fill').forEach(fill => observer.observe(fill));
+            } else {
+                document.querySelectorAll('.page-portfolio .skill-fill').forEach(fill => {
+                    fill.style.width = `${fill.getAttribute('data-level') || 0}%`;
+                });
+            }
         }
     };
 
