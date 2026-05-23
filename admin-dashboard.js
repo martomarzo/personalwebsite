@@ -124,7 +124,53 @@ document.addEventListener('DOMContentLoaded', () => {
             this.elements.contentTabs.addEventListener('click', (e) => this.handleTabClick(e));
             this.elements.settingsForm.addEventListener('submit', (e) => this.handleSettingsSave(e));
             this.elements.modalCancelBtn.addEventListener('click', () => this.closeModal());
-            
+
+            const saveProfileBtn = document.getElementById('save-profile-btn');
+            if (saveProfileBtn) saveProfileBtn.addEventListener('click', () => this.handleProfileSave());
+
+            // Versions list: collapse toggle
+            const collapseBtn = document.getElementById('versions-collapse-btn');
+            const versionsBody = document.getElementById('versions-body');
+            if (collapseBtn && versionsBody) {
+                const collapsed = localStorage.getItem('versions-collapsed') === 'true';
+                if (collapsed) {
+                    versionsBody.classList.add('collapsed');
+                    collapseBtn.querySelector('i').classList.replace('fa-chevron-up', 'fa-chevron-down');
+                }
+                collapseBtn.addEventListener('click', () => {
+                    const isCollapsed = versionsBody.classList.toggle('collapsed');
+                    collapseBtn.querySelector('i').classList.toggle('fa-chevron-up', !isCollapsed);
+                    collapseBtn.querySelector('i').classList.toggle('fa-chevron-down', isCollapsed);
+                    localStorage.setItem('versions-collapsed', isCollapsed);
+                });
+            }
+
+            // Versions list: search filter
+            const searchInput = document.getElementById('versions-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const q = searchInput.value.toLowerCase();
+                    document.querySelectorAll('#versions-list li').forEach(li => {
+                        const name = li.querySelector('.version-name')?.textContent.toLowerCase() || '';
+                        li.style.display = name.includes(q) ? '' : 'none';
+                    });
+                });
+            }
+
+            const profilePicInput = document.getElementById('contact-profile-pic');
+            if (profilePicInput) {
+                profilePicInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const preview = document.getElementById('current-profile-pic-preview');
+                        if (preview) preview.innerHTML = `<img src="${ev.target.result}" alt="New photo preview">`;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
             // Logout listener
             const logoutBtn = document.getElementById('logout-btn');
             if (logoutBtn) {
@@ -149,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async loadInitialData() {
             await this.loadVersions();
+            await this.loadGlobalProfile();
             await this.loadSkillCategories();
             await this.loadServerSections();
             if (this.state.versions.length > 0) {
@@ -188,25 +235,76 @@ document.addEventListener('DOMContentLoaded', () => {
             await this.loadVisibility();
             this.renderActiveTabContent();
         },
+        async loadGlobalProfile() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/global_profile`);
+                if (!response.ok) return;
+                const contactInfo = await response.json();
+                if (!contactInfo) return;
+
+                ['name', 'email', 'phone', 'linkedin', 'github', 'website'].forEach(key => {
+                    const el = document.getElementById(`contact-${key}`);
+                    if (el) el.value = contactInfo[key] || '';
+                });
+                const picHidden = document.getElementById('contact-profile_picture');
+                if (picHidden) picHidden.value = contactInfo.profile_picture || '';
+                this.updateProfilePreview(contactInfo.profile_picture);
+            } catch (err) {
+                // silently ignore — profile section just stays empty
+            }
+        },
+
+        updateProfilePreview(url) {
+            const picPreview = document.getElementById('current-profile-pic-preview');
+            if (!picPreview) return;
+            picPreview.innerHTML = url
+                ? `<img src="${url}" alt="Profile Picture">`
+                : '';
+        },
+
+        async handleProfileSave() {
+            const formData = new FormData();
+            ['name', 'email', 'phone', 'linkedin', 'github', 'website'].forEach(key => {
+                const el = document.getElementById(`contact-${key}`);
+                if (el) formData.append(key, el.value);
+            });
+            const picHidden = document.getElementById('contact-profile_picture');
+            if (picHidden) formData.append('profile_picture', picHidden.value);
+            const picFile = document.getElementById('contact-profile-pic');
+            if (picFile && picFile.files[0]) formData.append('profile_pic', picFile.files[0]);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/global_profile`, { method: 'PUT', body: formData });
+                if (!response.ok) throw new Error('Save failed');
+                const result = await response.json();
+                // Update hidden field and preview with whatever the server persisted
+                if (result.profile_picture !== undefined) {
+                    if (picHidden) picHidden.value = result.profile_picture || '';
+                    this.updateProfilePreview(result.profile_picture);
+                }
+                this.notify('Profile saved!');
+            } catch (err) {
+                this.notify('Failed to save profile.', 'error');
+            }
+        },
+
         async loadVersionSettings() {
             const version = this.state.versions.find(v => v.id === this.state.currentVersionId);
             const contactInfoResponse = await this.apiGet(`/contact_info/${this.state.currentVersionId}`);
-            // apiGet always returns an array, so we take the first element
             const contactInfo = Array.isArray(contactInfoResponse) ? contactInfoResponse[0] : contactInfoResponse;
-            
+
             this.elements.currentVersionNameSpan.textContent = `"${version.name}"`;
             this.elements.settingsForm.querySelectorAll('[data-field]').forEach(el => {
                 const field = el.dataset.field;
                 el[el.type === 'checkbox' ? 'checked' : 'value'] = version[field] || (el.type === 'checkbox' ? false : '');
             });
 
+            // Populate version-specific subtitle fields
             if (contactInfo) {
-                Object.keys(contactInfo).forEach(key => {
-                    const el = this.elements.settingsForm.querySelector(`#contact-${key}`);
+                ['subtitle', 'subtitle_es'].forEach(key => {
+                    const el = document.getElementById(`contact-${key}`);
                     if (el) el.value = contactInfo[key] || '';
                 });
-                const picPreview = this.elements.settingsForm.querySelector('#current-profile-pic-preview');
-                picPreview.innerHTML = contactInfo.profile_picture ? `<img src="${contactInfo.profile_picture}" alt="Profile Picture">` : '';
             }
 
             this.elements.settingsManager.classList.remove('hidden');
@@ -681,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleSettingsSave(e) {
             e.preventDefault();
             const versionData = {};
-            
+
             // 1. Get existing name and slug from state
             const currentVersion = this.state.versions.find(v => v.id === this.state.currentVersionId);
             if (currentVersion) {
@@ -693,13 +791,25 @@ document.addEventListener('DOMContentLoaded', () => {
             this.elements.settingsForm.querySelectorAll('[data-field]').forEach(el => {
                 versionData[el.dataset.field] = el.type === 'checkbox' ? el.checked : el.value;
             });
-            
-            const contactData = new FormData(e.target); 
-            
+
+            // 3. Save version-specific subtitle fields via contact_info endpoint
+            const subtitleData = new FormData();
+            const subtitleEl = document.getElementById('contact-subtitle');
+            const subtitleEsEl = document.getElementById('contact-subtitle_es');
+            if (subtitleEl) subtitleData.append('subtitle', subtitleEl.value);
+            if (subtitleEsEl) subtitleData.append('subtitle_es', subtitleEsEl.value);
+            // Pass current global profile values so they aren't overwritten
+            ['name', 'email', 'phone', 'linkedin', 'github', 'website'].forEach(key => {
+                const el = document.getElementById(`contact-${key}`);
+                if (el) subtitleData.append(key, el.value);
+            });
+            const picHidden = document.getElementById('contact-profile_picture');
+            if (picHidden) subtitleData.append('profile_picture', picHidden.value);
+
             try {
                 await this.apiPut(`/versions/${this.state.currentVersionId}`, versionData);
-                await this.apiPutFormData(`/contact_info/${this.state.currentVersionId}`, contactData);
-                this.notify('Settings saved successfully!');
+                await this.apiPutFormData(`/contact_info/${this.state.currentVersionId}`, subtitleData);
+                this.notify('Version settings saved!');
             } catch (err) {
                 console.error('Error saving settings:', err);
                 this.notify('Failed to save settings. Check console for details.', 'error');
@@ -800,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 html += `<div class="form-group"><label>${field}</label>`;
-                
+
                 if (type === 'select') {
                     let options = [];
                     if (field === 'category_id') {
@@ -808,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         options = typeInfo.options.map(opt => typeof opt === 'object' ? opt : { value: opt, label: opt });
                     }
-                    
+
                     html += `<select name="pool_${field}" data-old-value="${value}">`;
                     html += `<option value="">-- Select --</option>`;
                     options.forEach(opt => {
@@ -817,6 +927,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     html += `<option value="ADD_NEW" style="font-weight: bold; color: var(--accent-color);">+ Add New Category...</option>`;
                     html += `</select>`;
+                } else if (field === 'end_date') {
+                    const isPresent = !value;
+                    html += `<div class="end-date-group">`;
+                    html += `<input type="date" name="pool_end_date" value="${value}" ${isPresent ? 'disabled' : ''}>`;
+                    html += `<label class="still-active-label"><input type="checkbox" name="pool_end_date_present" ${isPresent ? 'checked' : ''} onchange="const d=this.closest('.end-date-group').querySelector('input[type=date]');d.disabled=this.checked;if(this.checked)d.value='';"> Present</label>`;
+                    html += `</div>`;
                 } else {
                     html += `<input type="${type}" name="pool_${field}" value="${value}">`;
                 }
@@ -862,7 +978,18 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Collect Pool Data
             Object.keys(this.formDefinitions[section].pool).forEach(field => {
-                poolData[field] = form.querySelector(`[name="pool_${field}"]`).value;
+                if (field === 'end_date') {
+                    const presentEl = form.querySelector('[name="pool_end_date_present"]');
+                    if (presentEl && presentEl.checked) {
+                        poolData[field] = null;
+                        return;
+                    }
+                }
+                const inputEl = form.querySelector(`[name="pool_${field}"]`);
+                const typeInfo = this.formDefinitions[section].pool[field];
+                const type = typeof typeInfo === 'string' ? typeInfo : typeInfo.type;
+                const val = inputEl.value;
+                poolData[field] = (val === '' && type !== 'text' && type !== 'url' && type !== 'textarea') ? null : val;
             });
 
             // Collect EN and ES Details

@@ -376,6 +376,34 @@ app.delete('/api/admin/versions/:id', async (req, res) => {
     }
 });
 
+app.get('/api/admin/global_profile', async (req, res) => {
+    try {
+        // Prefer a row that already has a profile picture; fall back to any row
+        const result = await pool.query(
+            'SELECT * FROM contact_info ORDER BY (profile_picture IS NOT NULL) DESC LIMIT 1'
+        );
+        res.json(result.rows[0] || {});
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/admin/global_profile', upload.single('profile_pic'), async (req, res) => {
+    const { name, email, phone, linkedin, github, website } = req.body;
+    let profile_picture = req.body.profile_picture;
+    if (req.file) profile_picture = '/uploads/' + req.file.filename;
+    try {
+        await pool.query(
+            'UPDATE contact_info SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7',
+            [name, email, phone, linkedin, github, website, profile_picture]
+        );
+        res.json({ success: true, profile_picture: profile_picture || null });
+    } catch (err) {
+        console.error('Error in global profile update:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/admin/contact_info/:version_id', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM contact_info WHERE version_id = $1', [req.params.version_id]);
@@ -466,7 +494,7 @@ const createCrudRoutes = (section) => {
         try {
             await client.query('BEGIN');
             const poolCols = Object.keys(poolData).join(', ');
-            const poolVals = Object.values(poolData);
+            const poolVals = Object.values(poolData).map(v => v === '' ? null : v);
             const poolRes = await client.query(`INSERT INTO ${tbl}_pool (${poolCols}) VALUES (${poolVals.map((_, i) => '$'+(i+1)).join(',')}) RETURNING id`, poolVals);
             const poolId = poolRes.rows[0].id;
 
