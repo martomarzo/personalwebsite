@@ -254,12 +254,24 @@ document.addEventListener('DOMContentLoaded', () => {
             // Project cards batch
             if (ScrollTrigger.batch) {
                 ScrollTrigger.batch('.page-portfolio .project-card', {
-                    onEnter: batch => gsap.from(batch, { opacity: 0, y: 30, duration: 0.55, ease: 'power2.out', stagger: 0.1 }),
+                    onEnter: batch => gsap.to(batch, {
+                        opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', stagger: 0.1,
+                        onComplete: () => {
+                            gsap.set(batch, { clearProps: 'transform,opacity,will-change' });
+                            batch.forEach(el => el.classList.add('entered'));
+                        }
+                    }),
                     start: 'top 89%'
                 });
 
                 ScrollTrigger.batch('.page-portfolio .skill-category', {
-                    onEnter: batch => gsap.from(batch, { opacity: 0, y: 24, duration: 0.5, ease: 'power2.out', stagger: 0.08 }),
+                    onEnter: batch => gsap.to(batch, {
+                        opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', stagger: 0.08,
+                        onComplete: () => {
+                            gsap.set(batch, { clearProps: 'transform,opacity,will-change' });
+                            batch.forEach(el => el.classList.add('entered'));
+                        }
+                    }),
                     start: 'top 89%'
                 });
             }
@@ -461,6 +473,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 container.appendChild(div);
             });
+
+            if (typeof gsap !== 'undefined') {
+                gsap.set(container.querySelectorAll('.project-card'), { opacity: 0, y: 30 });
+            }
         },
 
         renderSkills(skillsData) {
@@ -502,6 +518,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 categoryDiv.appendChild(skillsList);
                 container.appendChild(categoryDiv);
             });
+
+            if (typeof gsap !== 'undefined') {
+                gsap.set(container.querySelectorAll('.skill-category'), { opacity: 0, y: 24 });
+            }
+
+            this.equalizeSkillHeights();
+        },
+
+        equalizeSkillHeights() {
+            const apply = () => {
+                const cards = document.querySelectorAll('#skills .skill-category');
+                if (!cards.length) return;
+                cards.forEach(c => { c.style.minHeight = ''; });
+                const max = Math.max(...Array.from(cards).map(c => c.getBoundingClientRect().height));
+                cards.forEach(c => { c.style.minHeight = `${max}px`; });
+            };
+
+            apply();
+
+            if (!this._skillsResizeBound) {
+                this._skillsResizeBound = true;
+                let raf;
+                window.addEventListener('resize', () => {
+                    cancelAnimationFrame(raf);
+                    raf = requestAnimationFrame(apply);
+                });
+            }
         },
 
         renderSummary(summaryData, versionData) {

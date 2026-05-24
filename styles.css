@@ -412,6 +412,7 @@ a { text-decoration: none; }
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   margin-top: 0;
+  align-items: stretch;
 }
 
 .page-portfolio .skill-category {
@@ -419,6 +420,12 @@ a { text-decoration: none; }
   border: 1px solid var(--border-color);
   border-radius: var(--radius-card);
   padding: 28px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.page-portfolio .skill-category.entered {
   transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
 }
 
@@ -440,25 +447,25 @@ a { text-decoration: none; }
 .page-portfolio .skill-category ul {
   list-style: none;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .page-portfolio .skill-category ul li {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .page-portfolio .skill-name {
-  width: 120px;
-  flex-shrink: 0;
   font-size: 0.87rem;
   font-weight: 500;
   color: var(--text-color);
 }
 
 .page-portfolio .skill-level-bar {
-  flex: 1;
+  width: 100%;
   height: 5px;
   background-color: var(--accent-dim);
   border-radius: 3px;
@@ -489,6 +496,10 @@ a { text-decoration: none; }
   border-radius: var(--radius-card);
   display: flex;
   flex-direction: column;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.page-portfolio .project-card.entered {
   transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
 }
 
