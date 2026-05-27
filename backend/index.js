@@ -6,6 +6,9 @@ const cors = require('cors');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
+const puppeteer = require('puppeteer');
+const sharp = require('sharp');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
@@ -97,6 +100,23 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Downscale an uploaded profile picture in place. Source photos can be many MB
+// (phone cameras); the avatar only ever renders small, and the full-resolution
+// image was bloating exported PDFs to ~9MB. Caps width at 500px, auto-orients
+// from EXIF, and preserves the original format. Best-effort: failures are logged
+// but don't block the upload.
+async function downscaleProfilePicture(filePath) {
+    try {
+        const buf = await sharp(filePath)
+            .rotate()
+            .resize({ width: 500, withoutEnlargement: true })
+            .toBuffer();
+        await fs.promises.writeFile(filePath, buf);
+    } catch (e) {
+        console.error('Profile picture downscale failed:', e.message);
+    }
+}
+
 // --- PAGE ROUTES ---
 app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
 
@@ -139,74 +159,177 @@ app.get('/api/server-info', async (req, res) => {
     }
 });
 
-app.get('/api/resume/slug/:slug/:language', async (req, res) => {
+// Fetch a resume_versions row (with localized titles + joined contact info) by
+// either slug or id. Returns null if not found. `key` is 'slug' or 'id'.
+async function fetchVersionRow(client, key, value, language) {
+    const versionRes = await client.query(`
+        SELECT
+            rv.*,
+            ci.name as contact_name, ci.email, ci.phone, ci.linkedin, ci.github, ci.website, ci.profile_picture,
+            CASE WHEN $2 = 'es' THEN rv.title_experience_es ELSE rv.title_experience END as title_experience,
+            CASE WHEN $2 = 'es' THEN rv.title_education_es ELSE rv.title_education END as title_education,
+            CASE WHEN $2 = 'es' THEN rv.title_projects_es ELSE rv.title_projects END as title_projects,
+            CASE WHEN $2 = 'es' THEN rv.title_skills_es ELSE rv.title_skills END as title_skills,
+            CASE WHEN $2 = 'es' THEN rv.title_summary_es ELSE rv.title_summary END as title_summary,
+            CASE WHEN $2 = 'es' THEN ci.subtitle_es ELSE ci.subtitle END as subtitle
+        FROM resume_versions rv
+        LEFT JOIN contact_info ci ON rv.id = ci.version_id
+        WHERE rv.${key === 'id' ? 'id' : 'slug'} = $1;
+    `, [value, language]);
+    return versionRes.rows[0] || null;
+}
 
+// Compose the full resume payload (sections respecting visibility) for a given
+// version row. Shared by the public API and the PDF export so the cached PDF's
+// content hash always matches what the page actually renders.
+async function composeResume(client, version, language) {
+    const resume = { version, experience: [], education: [], projects: [], skills: [], summary: null };
+
+    const fetchSection = async (section) => {
+        const tbl = section === 'projects' ? 'project' : section;
+        const result = await client.query(`
+            SELECT p.*, d.*
+            FROM ${tbl}_pool p
+            JOIN ${tbl}_details d ON p.id = d.pool_id
+            JOIN version_${tbl}_visibility v ON p.id = v.pool_id
+            WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+            ORDER BY p.id DESC;
+        `, [version.id, language]);
+        return result.rows;
+    };
+
+    if (version.show_experience) resume.experience = await fetchSection('experience');
+    if (version.show_education) resume.education = await fetchSection('education');
+    if (version.show_projects) resume.projects = await fetchSection('projects');
+
+    if (version.show_skills) {
+        const result = await client.query(`
+            SELECT p.id, p.percentage, sc.name as category, d.name
+            FROM skill_pool p JOIN skill_details d ON p.id = d.pool_id
+            JOIN skill_categories sc ON p.category_id = sc.id
+            JOIN version_skill_visibility v ON p.id = v.pool_id
+            WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+            ORDER BY sc.name, d.name;
+        `, [version.id, language]);
+        resume.skills = result.rows;
+    }
+
+    if (version.show_summary) {
+        const result = await client.query(`
+            SELECT p.id, d.content
+            FROM summary_pool p JOIN summary_details d ON p.id = d.pool_id
+            JOIN version_summary_visibility v ON p.id = v.pool_id
+            WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+            ORDER BY p.id DESC LIMIT 1;
+        `, [version.id, language]);
+        resume.summary = result.rows[0] || null;
+    }
+    return resume;
+}
+
+app.get('/api/resume/slug/:slug/:language', async (req, res) => {
     const { slug, language } = req.params;
     let client;
     try {
         client = await pool.connect();
-        const versionRes = await client.query(`
-            SELECT 
-                rv.*,
-                ci.name as contact_name, ci.email, ci.phone, ci.linkedin, ci.github, ci.website, ci.profile_picture,
-                CASE WHEN $2 = 'es' THEN rv.title_experience_es ELSE rv.title_experience END as title_experience,
-                CASE WHEN $2 = 'es' THEN rv.title_education_es ELSE rv.title_education END as title_education,
-                CASE WHEN $2 = 'es' THEN rv.title_projects_es ELSE rv.title_projects END as title_projects,
-                CASE WHEN $2 = 'es' THEN rv.title_skills_es ELSE rv.title_skills END as title_skills,
-                CASE WHEN $2 = 'es' THEN rv.title_summary_es ELSE rv.title_summary END as title_summary,
-                CASE WHEN $2 = 'es' THEN ci.subtitle_es ELSE ci.subtitle END as subtitle
-            FROM resume_versions rv
-            LEFT JOIN contact_info ci ON rv.id = ci.version_id
-            WHERE rv.slug = $1;
-        `, [slug, language]);
-
-        if (versionRes.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-
-        const version = versionRes.rows[0];
-        const resume = { version, experience: [], education: [], projects: [], skills: [], summary: null };
-
-        const fetchSection = async (section) => {
-            const tbl = section === 'projects' ? 'project' : section;
-            const result = await client.query(`
-                SELECT p.*, d.*
-                FROM ${tbl}_pool p 
-                JOIN ${tbl}_details d ON p.id = d.pool_id
-                JOIN version_${tbl}_visibility v ON p.id = v.pool_id
-                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-                ORDER BY p.id DESC;
-            `, [version.id, language]);
-            return result.rows;
-        };
-
-        if (version.show_experience) resume.experience = await fetchSection('experience');
-        if (version.show_education) resume.education = await fetchSection('education');
-        if (version.show_projects) resume.projects = await fetchSection('projects');
-        
-        if (version.show_skills) {
-            const result = await client.query(`
-                SELECT p.id, p.percentage, sc.name as category, d.name
-                FROM skill_pool p JOIN skill_details d ON p.id = d.pool_id
-                JOIN skill_categories sc ON p.category_id = sc.id
-                JOIN version_skill_visibility v ON p.id = v.pool_id
-                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-                ORDER BY sc.name, d.name;
-            `, [version.id, language]);
-            resume.skills = result.rows;
-        }
-
-        if (version.show_summary) {
-            const result = await client.query(`
-                SELECT p.id, d.content
-                FROM summary_pool p JOIN summary_details d ON p.id = d.pool_id
-                JOIN version_summary_visibility v ON p.id = v.pool_id
-                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-                ORDER BY p.id DESC LIMIT 1;
-            `, [version.id, language]);
-            resume.summary = result.rows[0] || null;
-        }
+        const version = await fetchVersionRow(client, 'slug', slug, language);
+        if (!version) return res.status(404).json({ error: 'Not found' });
+        const resume = await composeResume(client, version, language);
         res.json(resume);
     } catch (err) {
         res.status(500).json({ error: 'Database error' });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// --- PDF EXPORT ---
+// Bump when the print layout changes so all cached PDFs are invalidated.
+const PDF_RENDER_VERSION = 'v1';
+
+// Serialize renders: only one Chromium runs at a time to stay within the
+// 512MB instance budget. Requests queue rather than launch concurrent browsers.
+let renderChain = Promise.resolve();
+function serializeRender(task) {
+    const result = renderChain.then(task, task);
+    renderChain = result.then(() => {}, () => {});
+    return result;
+}
+
+// Launch a lean headless Chromium, render the print view of a resume page, and
+// return the PDF buffer. Browser is launched on-demand and closed immediately
+// so it holds no idle memory between exports.
+async function renderResumePdf(url) {
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--single-process',
+            '--no-zygote',
+            '--disable-gpu',
+        ],
+    });
+    try {
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+        // Ensure the async-rendered content has actually populated the page.
+        await page.waitForFunction(() => {
+            const h1 = document.querySelector('header h1');
+            return h1 && h1.textContent.trim().length > 0;
+        }, { timeout: 15000 }).catch(() => {});
+        return await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '14mm', bottom: '14mm', left: '12mm', right: '12mm' },
+        });
+    } finally {
+        await browser.close();
+    }
+}
+
+// Download a version as PDF. Authenticated (triggered from the admin panel).
+// Serves a cached PDF when the composed content is unchanged; otherwise renders
+// fresh via Puppeteer and updates the cache.
+app.get('/api/download/pdf/:id/:language', authenticateAdmin, async (req, res) => {
+    const { id, language } = req.params;
+    let client;
+    try {
+        client = await pool.connect();
+        const version = await fetchVersionRow(client, 'id', id, language);
+        if (!version) return res.status(404).json({ error: 'Version not found' });
+
+        const resume = await composeResume(client, version, language);
+        const hash = crypto.createHash('sha256')
+            .update(`${PDF_RENDER_VERSION}:${language}:${JSON.stringify(resume)}`)
+            .digest('hex');
+
+        const cached = await client.query(
+            'SELECT content_hash, pdf FROM pdf_cache WHERE version_id = $1 AND language = $2',
+            [id, language]
+        );
+
+        let pdf;
+        if (cached.rows.length && cached.rows[0].content_hash === hash) {
+            pdf = cached.rows[0].pdf; // cache hit — no Chromium launch
+        } else {
+            const url = `http://127.0.0.1:${port}/?v=${encodeURIComponent(version.slug)}&lang=${encodeURIComponent(language)}&print=1`;
+            pdf = await serializeRender(() => renderResumePdf(url));
+            await client.query(`
+                INSERT INTO pdf_cache (version_id, language, content_hash, pdf, generated_at)
+                VALUES ($1, $2, $3, $4, now())
+                ON CONFLICT (version_id, language)
+                DO UPDATE SET content_hash = $3, pdf = $4, generated_at = now()
+            `, [id, language, hash, pdf]);
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${version.slug}-${language}.pdf"`);
+        res.send(Buffer.from(pdf));
+    } catch (err) {
+        console.error('PDF generation error:', err.message);
+        res.status(500).json({ error: 'PDF generation failed' });
     } finally {
         if (client) client.release();
     }
@@ -391,7 +514,10 @@ app.get('/api/admin/global_profile', async (req, res) => {
 app.put('/api/admin/global_profile', upload.single('profile_pic'), async (req, res) => {
     const { name, email, phone, linkedin, github, website } = req.body;
     let profile_picture = req.body.profile_picture;
-    if (req.file) profile_picture = '/uploads/' + req.file.filename;
+    if (req.file) {
+        await downscaleProfilePicture(req.file.path);
+        profile_picture = '/uploads/' + req.file.filename;
+    }
     try {
         await pool.query(
             'UPDATE contact_info SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7',
@@ -420,6 +546,7 @@ app.put('/api/admin/contact_info/:version_id', upload.single('profile_pic'), asy
     let profile_picture = req.body.profile_picture;
 
     if (req.file) {
+        await downscaleProfilePicture(req.file.path);
         profile_picture = '/uploads/' + req.file.filename;
     }
 

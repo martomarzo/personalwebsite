@@ -1012,3 +1012,33 @@ th.sortable::after {
     display: none;
     font-size: 0.9rem;
 }
+
+/* Language picker for PDF download (anchored popup near the PDF icon) */
+.lang-menu {
+    position: absolute;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    min-width: 130px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+
+.lang-menu button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.lang-menu button:hover {
+    background-color: var(--accent-dim);
+    color: var(--accent-light);
+}

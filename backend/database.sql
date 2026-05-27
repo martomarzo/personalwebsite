@@ -1,5 +1,6 @@
 -- Drop only the tables used by the current application
 DROP TABLE IF EXISTS
+    pdf_cache,
     version_experience_visibility,
     version_education_visibility,
     version_project_visibility,
@@ -102,4 +103,17 @@ CREATE TABLE server_items (
     function VARCHAR(255), -- for table rows
     display_order INTEGER DEFAULT 0,
     is_visible BOOLEAN DEFAULT true
+);
+
+-- Cache of generated PDF exports. Keyed by (version, language). content_hash is
+-- a hash of the composed resume payload; when it no longer matches, the cached
+-- PDF is stale and gets re-rendered. Stored in the DB (not on disk) because
+-- Render's filesystem is ephemeral and wiped on every redeploy.
+CREATE TABLE pdf_cache (
+    version_id INTEGER NOT NULL REFERENCES resume_versions(id) ON DELETE CASCADE,
+    language VARCHAR(10) NOT NULL,
+    content_hash TEXT NOT NULL,
+    pdf BYTEA NOT NULL,
+    generated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (version_id, language)
 );

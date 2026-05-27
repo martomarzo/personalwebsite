@@ -3,6 +3,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const app = {
         init() {
+            // Print mode: rendered by Puppeteer for PDF export. Disables animations
+            // (which would otherwise leave off-screen content at opacity:0 since there
+            // is no scrolling) and hides interactive chrome (nav/footer).
+            this.printMode = new URLSearchParams(window.location.search).get('print') === '1';
+            if (this.printMode) {
+                document.body.classList.add('print-mode');
+                // Force light theme for a clean, printable PDF regardless of stored theme.
+                document.documentElement.classList.add('light-mode');
+            }
+
             if (document.body.classList.contains('page-portfolio')) {
                 this.handleNavLinks();
                 this.updateActiveNavLinkOnScroll();
@@ -308,13 +318,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.updateSectionTitles(resumeData.version);
                 this.updateSectionVisibility(resumeData.version);
                 this.renderContactInfo(resumeData.version);
-                this.initHeroAnimations();
+                if (!this.printMode) this.initHeroAnimations();
                 this.renderSummary(resumeData.summary, resumeData.version);
                 this.renderExperience(resumeData.experience || []);
                 this.renderEducation(resumeData.education || []);
                 this.renderProjects(resumeData.projects || []);
                 this.renderSkills(resumeData.skills || []);
-                this.initScrollTriggerAnimations();
+                if (!this.printMode) this.initScrollTriggerAnimations();
                 this.initSkillBarsAnimation();
 
             } catch (error) {
@@ -474,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.appendChild(div);
             });
 
-            if (typeof gsap !== 'undefined') {
+            if (!this.printMode && typeof gsap !== 'undefined') {
                 gsap.set(container.querySelectorAll('.project-card'), { opacity: 0, y: 30 });
             }
         },
@@ -519,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.appendChild(categoryDiv);
             });
 
-            if (typeof gsap !== 'undefined') {
+            if (!this.printMode && typeof gsap !== 'undefined') {
                 gsap.set(container.querySelectorAll('.skill-category'), { opacity: 0, y: 24 });
             }
 
@@ -648,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         initSkillBarsAnimation() {
-            if (typeof gsap !== 'undefined') {
+            if (!this.printMode && typeof gsap !== 'undefined') {
                 document.querySelectorAll('.page-portfolio .skill-fill').forEach(fill => {
                     const level = fill.getAttribute('data-level') || 0;
                     gsap.to(fill, {

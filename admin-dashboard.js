@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (target.matches('.delete-version-btn')) {
                 this.handleDeleteVersion(id);
             } else if (target.matches('.download-version-btn')) {
-                this.handleDownloadVersion(id);
+                this.handleDownloadVersion(id, target);
             }
         },
 
@@ -665,10 +665,39 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        handleDownloadVersion(id) {
-            // Defaulting to 'en' for language. This could be made more dynamic in the future.
-            const language = 'en'; 
-            window.open(`/api/download/pdf/${id}/${language}`, '_blank');
+        handleDownloadVersion(id, anchorEl) {
+            // Close any menu already open.
+            document.querySelector('.lang-menu')?.remove();
+
+            const menu = document.createElement('div');
+            menu.className = 'lang-menu';
+            menu.innerHTML = `
+                <button type="button" data-lang="en">English</button>
+                <button type="button" data-lang="es">Español</button>
+            `;
+
+            // Anchor the menu just below the clicked PDF icon.
+            const rect = anchorEl.getBoundingClientRect();
+            menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+            menu.style.left = `${rect.left + window.scrollX}px`;
+            document.body.appendChild(menu);
+
+            menu.addEventListener('click', (e) => {
+                const lang = e.target.dataset.lang;
+                if (!lang) return;
+                window.open(`/api/download/pdf/${id}/${lang}`, '_blank');
+                menu.remove();
+            });
+
+            // Dismiss on the next click anywhere else.
+            setTimeout(() => {
+                document.addEventListener('click', function close(ev) {
+                    if (!menu.contains(ev.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', close);
+                    }
+                });
+            }, 0);
         },
 
         handleEditVersion(li, id) {

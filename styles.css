@@ -922,3 +922,42 @@ a { text-decoration: none; }
   .page-server-info body { margin: 0; }
   .page-server-info .no-print { display: none; }
 }
+
+/* ==========================================================================
+   Print mode (PDF export via Puppeteer, triggered by ?print=1)
+   Hides interactive chrome, drops sticky/animation artifacts, and tightens
+   spacing so the resume reads as a compact document rather than a web page.
+   ========================================================================== */
+.print-mode .resume-nav,
+.print-mode footer,
+.print-mode .language-switcher,
+.print-mode .theme-toggle {
+  display: none !important;
+}
+
+.print-mode.page-portfolio header {
+  padding: 32px 0 24px;
+}
+
+.print-mode.page-portfolio section {
+  padding: 24px 0;
+  break-inside: avoid-page;
+}
+
+/* Neutralise any animation residue so all content is fully visible. */
+.print-mode .project-card,
+.print-mode .skill-category,
+.print-mode .experience-item,
+.print-mode .education-item,
+.print-mode [style*="opacity"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Keep individual entries from being split across pages. */
+.print-mode .experience-item,
+.print-mode .education-item,
+.print-mode .project-card,
+.print-mode .skill-category {
+  break-inside: avoid;
+}
