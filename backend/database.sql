@@ -54,7 +54,9 @@ CREATE TABLE contact_info (
     linkedin VARCHAR(255),
     github VARCHAR(255),
     website VARCHAR(255),
-    profile_picture VARCHAR(255),
+    profile_picture VARCHAR(255),       -- URL string: /api/profile_picture?v=<ts>
+    profile_picture_data BYTEA,         -- downscaled image bytes (served by /api/profile_picture)
+    profile_picture_mime TEXT,          -- e.g. image/jpeg, image/png
     subtitle VARCHAR(255),
     subtitle_es VARCHAR(255),
     UNIQUE(version_id)

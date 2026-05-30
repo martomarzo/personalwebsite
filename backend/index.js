@@ -29,13 +29,24 @@ const dbConfig = {
 
 const pool = new Pool(dbConfig);
 
-// Test connection
+// Test connection and ensure schema is up to date. There is no migration
+// runner, so additive columns are applied idempotently here on every startup
+// (works against both the local DB and Render's remote DB).
 pool.connect(async (err, client, release) => {
     if (err) {
         return console.error('CRITICAL: Database connection failed!', err.message);
     }
     console.log('Database connected successfully.');
-    release();
+    try {
+        await client.query(`
+            ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS profile_picture_data BYTEA;
+            ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS profile_picture_mime TEXT;
+        `);
+    } catch (e) {
+        console.error('Schema ensure failed:', e.message);
+    } finally {
+        release();
+    }
 });
 
 // --- Middleware ---
@@ -94,27 +105,21 @@ app.post('/api/logout', (req, res) => {
 });
 
 // --- File Upload Setup ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
+// Profile pictures are stored as BYTEA in Postgres (the Render filesystem is
+// ephemeral, so disk uploads vanish on every redeploy). Keep uploads in memory
+// and never touch disk.
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Downscale an uploaded profile picture in place. Source photos can be many MB
-// (phone cameras); the avatar only ever renders small, and the full-resolution
-// image was bloating exported PDFs to ~9MB. Caps width at 500px, auto-orients
-// from EXIF, and preserves the original format. Best-effort: failures are logged
-// but don't block the upload.
-async function downscaleProfilePicture(filePath) {
-    try {
-        const buf = await sharp(filePath)
-            .rotate()
-            .resize({ width: 500, withoutEnlargement: true })
-            .toBuffer();
-        await fs.promises.writeFile(filePath, buf);
-    } catch (e) {
-        console.error('Profile picture downscale failed:', e.message);
-    }
+// Downscale a profile picture buffer. Source photos can be many MB (phone
+// cameras); the avatar only ever renders small, and the full-resolution image
+// was bloating exported PDFs to ~9MB. Caps width at 500px and auto-orients from
+// EXIF. Returns the processed bytes plus their mime type for DB storage.
+async function downscaleProfilePicture(buffer) {
+    const { data, info } = await sharp(buffer)
+        .rotate()
+        .resize({ width: 500, withoutEnlargement: true })
+        .toBuffer({ resolveWithObject: true });
+    return { data, mime: `image/${info.format}` };
 }
 
 // --- PAGE ROUTES ---
@@ -499,13 +504,34 @@ app.delete('/api/admin/versions/:id', async (req, res) => {
     }
 });
 
+// Serves the profile picture stored in the DB. Public: the portfolio page, the
+// admin preview, and the Puppeteer PDF render all load this URL as an <img> src.
+// The photo is global (shared across all versions), so any row with bytes works.
+app.get('/api/profile_picture', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT profile_picture_data, profile_picture_mime FROM contact_info WHERE profile_picture_data IS NOT NULL LIMIT 1'
+        );
+        const row = result.rows[0];
+        if (!row || !row.profile_picture_data) return res.status(404).end();
+        res.setHeader('Content-Type', row.profile_picture_mime || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.send(Buffer.from(row.profile_picture_data));
+    } catch (err) {
+        console.error('Error serving profile picture:', err.message);
+        res.status(500).end();
+    }
+});
+
 app.get('/api/admin/global_profile', async (req, res) => {
     try {
         // Prefer a row that already has a profile picture; fall back to any row
         const result = await pool.query(
             'SELECT * FROM contact_info ORDER BY (profile_picture IS NOT NULL) DESC LIMIT 1'
         );
-        res.json(result.rows[0] || {});
+        const row = result.rows[0] || {};
+        delete row.profile_picture_data; // never ship raw image bytes in JSON
+        res.json(row);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -514,15 +540,22 @@ app.get('/api/admin/global_profile', async (req, res) => {
 app.put('/api/admin/global_profile', upload.single('profile_pic'), async (req, res) => {
     const { name, email, phone, linkedin, github, website } = req.body;
     let profile_picture = req.body.profile_picture;
-    if (req.file) {
-        await downscaleProfilePicture(req.file.path);
-        profile_picture = '/uploads/' + req.file.filename;
-    }
     try {
-        await pool.query(
-            'UPDATE contact_info SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7',
-            [name, email, phone, linkedin, github, website, profile_picture]
-        );
+        if (req.file) {
+            // Store the downscaled bytes in the DB and point profile_picture at the
+            // serving endpoint. The timestamp busts the browser cache on each upload.
+            const { data, mime } = await downscaleProfilePicture(req.file.buffer);
+            profile_picture = '/api/profile_picture?v=' + Date.now();
+            await pool.query(
+                'UPDATE contact_info SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7, profile_picture_data=$8, profile_picture_mime=$9',
+                [name, email, phone, linkedin, github, website, profile_picture, data, mime]
+            );
+        } else {
+            await pool.query(
+                'UPDATE contact_info SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7',
+                [name, email, phone, linkedin, github, website, profile_picture]
+            );
+        }
         res.json({ success: true, profile_picture: profile_picture || null });
     } catch (err) {
         console.error('Error in global profile update:', err.message);
@@ -533,7 +566,9 @@ app.put('/api/admin/global_profile', upload.single('profile_pic'), async (req, r
 app.get('/api/admin/contact_info/:version_id', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM contact_info WHERE version_id = $1', [req.params.version_id]);
-        res.json(result.rows[0] || {});
+        const row = result.rows[0] || {};
+        delete row.profile_picture_data; // never ship raw image bytes in JSON
+        res.json(row);
     } catch (err) {
         console.error('Error in server sections API:', err.message);
         res.status(500).json({ error: err.message });
@@ -545,26 +580,34 @@ app.put('/api/admin/contact_info/:version_id', upload.single('profile_pic'), asy
     const { name, email, phone, linkedin, github, website, subtitle, subtitle_es } = req.body;
     let profile_picture = req.body.profile_picture;
 
-    if (req.file) {
-        await downscaleProfilePicture(req.file.path);
-        profile_picture = '/uploads/' + req.file.filename;
-    }
-
     try {
-        // 1. Update Global Fields for ALL versions (Name, Email, Phone, Socials, Photo)
-        await pool.query(`
-            UPDATE contact_info 
-            SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7
-        `, [name, email, phone, linkedin, github, website, profile_picture]);
+        // 1. Update Global Fields for ALL versions (Name, Email, Phone, Socials, Photo).
+        //    When a new photo is uploaded, also store its downscaled bytes in the DB
+        //    and point profile_picture at the serving endpoint (timestamp busts cache).
+        if (req.file) {
+            const { data, mime } = await downscaleProfilePicture(req.file.buffer);
+            profile_picture = '/api/profile_picture?v=' + Date.now();
+            await pool.query(`
+                UPDATE contact_info
+                SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7, profile_picture_data=$8, profile_picture_mime=$9
+            `, [name, email, phone, linkedin, github, website, profile_picture, data, mime]);
+        } else {
+            await pool.query(`
+                UPDATE contact_info
+                SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7
+            `, [name, email, phone, linkedin, github, website, profile_picture]);
+        }
 
         // 2. Update Version-Specific Fields (Subtitles) for the current version
         const result = await pool.query(`
-            UPDATE contact_info 
+            UPDATE contact_info
             SET subtitle=$1, subtitle_es=$2
             WHERE version_id=$3 RETURNING *`,
             [subtitle, subtitle_es, version_id]
         );
-        res.json(result.rows[0]);
+        const row = result.rows[0] || {};
+        delete row.profile_picture_data; // never ship raw image bytes in JSON
+        res.json(row);
     } catch (err) {
         console.error('Error in global contact update:', err.message);
         res.status(500).json({ error: err.message });
