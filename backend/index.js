@@ -192,13 +192,18 @@ async function composeResume(client, version, language) {
 
     const fetchSection = async (section) => {
         const tbl = section === 'projects' ? 'project' : section;
+        // experience/education sort chronologically; ongoing roles (NULL end_date) come first.
+        // projects have no date column, so fall back to insertion order.
+        const orderBy = (section === 'experience' || section === 'education')
+            ? 'p.end_date DESC NULLS FIRST, p.start_date DESC NULLS LAST, p.id DESC'
+            : 'p.id DESC';
         const result = await client.query(`
             SELECT p.*, d.*
             FROM ${tbl}_pool p
             JOIN ${tbl}_details d ON p.id = d.pool_id
             JOIN version_${tbl}_visibility v ON p.id = v.pool_id
             WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-            ORDER BY p.id DESC;
+            ORDER BY ${orderBy};
         `, [version.id, language]);
         return result.rows;
     };
