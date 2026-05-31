@@ -125,6 +125,21 @@ document.addEventListener('DOMContentLoaded', () => {
             this.elements.settingsForm.addEventListener('submit', (e) => this.handleSettingsSave(e));
             this.elements.modalCancelBtn.addEventListener('click', () => this.closeModal());
 
+            // AI Tailor wizard
+            const tailorOpen = document.getElementById('tailor-open-btn');
+            if (tailorOpen) tailorOpen.addEventListener('click', () => this.openTailorWizard());
+            document.querySelectorAll('.tailor-close-btn').forEach(b => b.addEventListener('click', () => this.closeTailorModal()));
+            const tailorGen = document.getElementById('tailor-generate-btn');
+            if (tailorGen) tailorGen.addEventListener('click', () => this.tailorGenerate(false));
+            const tailorRegen = document.getElementById('tailor-regenerate-btn');
+            if (tailorRegen) tailorRegen.addEventListener('click', () => this.tailorGenerate(true));
+            const tailorBack = document.getElementById('tailor-back-btn');
+            if (tailorBack) tailorBack.addEventListener('click', () => this.tailorShowStep('input'));
+            const tailorCommit = document.getElementById('tailor-commit-btn');
+            if (tailorCommit) tailorCommit.addEventListener('click', () => this.tailorCommit());
+            const tailorDownloadCover = document.getElementById('tailor-download-cover-letter-btn');
+            if (tailorDownloadCover) tailorDownloadCover.addEventListener('click', () => this.tailorDownloadCoverLetter());
+
             const saveProfileBtn = document.getElementById('save-profile-btn');
             if (saveProfileBtn) saveProfileBtn.addEventListener('click', () => this.handleProfileSave());
 
@@ -333,10 +348,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state.versions.forEach(version => {
                 const li = document.createElement('li');
                 li.dataset.id = version.id;
+                const publicUrl = `/?v=${encodeURIComponent(version.slug)}`;
                 li.innerHTML = `
                     <div class="version-info">
-                        <span class="version-name">${version.name}</span>
-                        <span class="version-slug">/${version.slug}</span>
+                        <span class="version-name">${this.escapeHtml(version.name)}</span>
+                        <a class="version-slug-link" href="${publicUrl}" target="_blank" rel="noopener" title="Open this version in a new tab">
+                            <i class="fas fa-external-link-alt"></i> /${this.escapeHtml(version.slug)}
+                        </a>
                     </div>
                     <span class="version-actions">
                         <i class="fas fa-file-pdf download-version-btn" title="Download as PDF"></i>
@@ -1054,7 +1072,327 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         // --- API Helpers ---
-        async apiGet(endpoint) { 
+        // --- AI Tailor Wizard ---
+        escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        },
+
+        openTailorWizard() {
+            // Populate base version dropdown from already-loaded state
+            const select = document.getElementById('tailor-base-version');
+            select.innerHTML = this.state.versions
+                .map(v => `<option value="${v.id}">${this.escapeHtml(v.name)}</option>`).join('');
+            if (this.state.currentVersionId) select.value = this.state.currentVersionId;
+
+            // Reset fields
+            document.getElementById('tailor-company').value = '';
+            document.getElementById('tailor-jd').value = '';
+            document.getElementById('tailor-notes').value = '';
+            document.getElementById('tailor-include-cover-letter').checked = false;
+            document.getElementById('tailor-cover-letter-section').classList.add('hidden');
+            this.state.tailorPreview = null;
+
+            document.getElementById('tailor-modal').classList.remove('hidden');
+            this.tailorShowStep('input');
+        },
+
+        closeTailorModal() {
+            document.getElementById('tailor-modal').classList.add('hidden');
+        },
+
+        tailorShowStep(step) {
+            ['input', 'preview'].forEach(s => {
+                const el = document.getElementById(`tailor-step-${s}`);
+                if (el) el.classList.toggle('hidden', s !== step);
+            });
+        },
+
+        // Put the active button into a busy state with a spinning icon and an elapsed counter.
+        // Returns a function that restores the button when called.
+        tailorButtonBusy(btn, idleLabel) {
+            if (!btn) return () => {};
+            btn.disabled = true;
+            const start = Date.now();
+            const render = () => {
+                const s = Math.floor((Date.now() - start) / 1000);
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating… ${s}s`;
+            };
+            render();
+            const timer = setInterval(render, 250);
+            return () => {
+                clearInterval(timer);
+                btn.disabled = false;
+                btn.innerHTML = idleLabel;
+            };
+        },
+
+        async tailorGenerate(isRegen) {
+            const baseVersionId = parseInt(document.getElementById('tailor-base-version').value, 10);
+            const language = document.getElementById('tailor-language').value;
+            const company = document.getElementById('tailor-company').value.trim();
+            const jd = document.getElementById('tailor-jd').value.trim();
+            const notes = document.getElementById('tailor-notes').value.trim();
+
+            if (!jd) { this.notify('Paste the job description first.', 'error'); return; }
+            if (jd.length > 12000) { this.notify('Job description too long (max 12,000 chars).', 'error'); return; }
+
+            const btn = document.getElementById(isRegen ? 'tailor-regenerate-btn' : 'tailor-generate-btn');
+            const restoreBtn = this.tailorButtonBusy(btn, isRegen ? 'Regenerate' : 'Generate');
+
+            try {
+                const includeCoverLetter = document.getElementById('tailor-include-cover-letter').checked;
+                const res = await this.apiPost('/tailor/preview', {
+                    base_version_id: baseVersionId,
+                    language,
+                    job_description: jd,
+                    company_name: company,
+                    notes: isRegen ? notes : '',
+                    include_cover_letter: includeCoverLetter,
+                });
+                if (!res || res.error) {
+                    this.notify('AI tailor failed: ' + (res?.error || 'unknown error'), 'error');
+                    return;
+                }
+                this.state.tailorPreview = res;
+                this.tailorRenderPreview(res);
+                this.tailorShowStep('preview');
+                this.notify('Tailored content ready — review and edit before saving.', 'success');
+            } catch (err) {
+                this.notify('AI tailor failed: ' + err.message, 'error');
+            } finally {
+                restoreBtn();
+            }
+        },
+
+        tailorRenderPreview(data) {
+            const { suggestions, base_resume } = data;
+
+            // Name + slug
+            document.getElementById('tailor-new-name').value = suggestions.suggested_name || '';
+            document.getElementById('tailor-new-slug').value = suggestions.suggested_slug || '';
+
+            // Summary diff
+            const summaryDiff = document.getElementById('tailor-summary-diff');
+            summaryDiff.innerHTML = `
+                <div class="diff-original">
+                    <label>Original</label>
+                    <div class="diff-text">${this.escapeHtml(base_resume.summary || '(no summary on base version)')}</div>
+                </div>
+                <div class="diff-tailored">
+                    <label>Tailored</label>
+                    <textarea id="tailor-summary-edit">${this.escapeHtml(suggestions.summary || '')}</textarea>
+                </div>
+            `;
+
+            // Experience list
+            const expList = document.getElementById('tailor-experience-list');
+            const byPoolId = new Map(suggestions.experience.map(e => [e.pool_id, e.description]));
+            expList.innerHTML = base_resume.experience.map(orig => {
+                const tailored = byPoolId.get(orig.pool_id) || '';
+                return `
+                    <div class="exp-card">
+                        <div class="exp-card-header">${this.escapeHtml(orig.company)}<span class="role-company">${this.escapeHtml(orig.role)}</span></div>
+                        <div class="diff-row">
+                            <div class="diff-original">
+                                <label>Original</label>
+                                <div class="diff-text">${this.escapeHtml(orig.description || '')}</div>
+                            </div>
+                            <div class="diff-tailored">
+                                <label>Tailored</label>
+                                <textarea data-pool-id="${orig.pool_id}" class="tailor-exp-edit">${this.escapeHtml(tailored)}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Skills checklist (all skills the base version shows; AI's picks pre-checked)
+            const visible = new Set(suggestions.skills_visible || []);
+            const skillsList = document.getElementById('tailor-skills-list');
+            skillsList.innerHTML = base_resume.skills.map(s => `
+                <label>
+                    <input type="checkbox" class="tailor-skill-toggle" data-pool-id="${s.id}" ${visible.has(s.id) ? 'checked' : ''}>
+                    ${this.escapeHtml(s.name)}
+                    <small style="color:var(--text-light)">${this.escapeHtml(s.category || '')}</small>
+                </label>
+            `).join('');
+
+            // AI's suggested NEW skills (opt-in: unchecked by default)
+            const newSkills = suggestions.new_skills || [];
+            const newHeading = document.getElementById('tailor-new-skills-heading');
+            const newHelp = document.getElementById('tailor-new-skills-help');
+            const newList = document.getElementById('tailor-new-skills-list');
+            newHeading.classList.toggle('hidden', newSkills.length === 0);
+            newHelp.classList.toggle('hidden', newSkills.length === 0);
+
+            // Cover letter section — shown only when the LLM returned one
+            const coverSection = document.getElementById('tailor-cover-letter-section');
+            const coverTextarea = document.getElementById('tailor-cover-letter-text');
+            if (suggestions.cover_letter && suggestions.cover_letter.trim()) {
+                coverTextarea.value = suggestions.cover_letter;
+                coverSection.classList.remove('hidden');
+            } else {
+                coverTextarea.value = '';
+                coverSection.classList.add('hidden');
+            }
+
+            const categories = base_resume.all_categories || [];
+            newList.innerHTML = newSkills.map((ns, i) => {
+                const catOptions = categories.map(c =>
+                    `<option value="${this.escapeHtml(c)}" ${c.toLowerCase() === (ns.category || '').toLowerCase() ? 'selected' : ''}>${this.escapeHtml(c)}</option>`
+                ).join('');
+                return `
+                    <div class="new-skill-card" data-index="${i}">
+                        <label class="new-skill-accept">
+                            <input type="checkbox" class="tailor-new-skill-accept" data-index="${i}">
+                            <span>Accept</span>
+                        </label>
+                        <div class="new-skill-fields">
+                            <div class="new-skill-row">
+                                <input type="text" class="tailor-new-skill-name-en" data-index="${i}" value="${this.escapeHtml(ns.name_en)}" placeholder="Name (EN)">
+                                <input type="text" class="tailor-new-skill-name-es" data-index="${i}" value="${this.escapeHtml(ns.name_es)}" placeholder="Name (ES)">
+                                <select class="tailor-new-skill-category" data-index="${i}">${catOptions}</select>
+                            </div>
+                            <div class="new-skill-evidence">${this.escapeHtml(ns.evidence || '')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        },
+
+        async tailorDownloadCoverLetter() {
+            const preview = this.state.tailorPreview;
+            if (!preview) { this.notify('No tailored content loaded.', 'error'); return; }
+
+            const text = document.getElementById('tailor-cover-letter-text').value.trim();
+            if (!text) { this.notify('Cover letter is empty.', 'error'); return; }
+
+            // Slug comes from the preview's version-name field — that's the URL the recipient will land on.
+            const targetSlug = document.getElementById('tailor-new-slug').value.trim();
+            const company = document.getElementById('tailor-company').value.trim();
+            const language = document.getElementById('tailor-language').value;
+
+            const btn = document.getElementById('tailor-download-cover-letter-btn');
+            const restoreBtn = this.tailorButtonBusy(btn, '<i class="fas fa-download"></i> Download cover letter (PDF)');
+
+            try {
+                const response = await fetch(API_BASE_URL + '/tailor/cover-letter-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_version_id: preview.base_version_id,
+                        text,
+                        company_name: company,
+                        language,
+                        target_slug: targetSlug,
+                    }),
+                });
+                if (response.status === 401) { window.location.href = '/login'; return; }
+                if (!response.ok) {
+                    const errText = await response.text();
+                    let msg = 'Cover letter PDF failed.';
+                    try { msg = JSON.parse(errText).error || msg; } catch (_) {}
+                    this.notify(msg, 'error');
+                    return;
+                }
+
+                const blob = await response.blob();
+                const cd = response.headers.get('content-disposition') || '';
+                const match = cd.match(/filename="([^"]+)"/);
+                const filename = match ? match[1] : 'cover-letter.pdf';
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                this.notify('Cover letter downloaded.', 'success');
+            } catch (err) {
+                this.notify('Cover letter PDF failed: ' + err.message, 'error');
+            } finally {
+                restoreBtn();
+            }
+        },
+
+        async tailorCommit() {
+            const preview = this.state.tailorPreview;
+            if (!preview) { this.notify('No tailored content to save.', 'error'); return; }
+
+            const newName = document.getElementById('tailor-new-name').value.trim();
+            const newSlug = document.getElementById('tailor-new-slug').value.trim();
+            if (!newName || !newSlug) { this.notify('Version name and slug are required.', 'error'); return; }
+            if (!/^[a-z0-9-]+$/.test(newSlug)) { this.notify('Slug may only contain lowercase letters, digits, and hyphens.', 'error'); return; }
+
+            // Collect edited experience descriptions
+            const expEdits = Array.from(document.querySelectorAll('.tailor-exp-edit')).map(ta => ({
+                pool_id: parseInt(ta.dataset.poolId, 10),
+                description: ta.value,
+            }));
+            const summary = document.getElementById('tailor-summary-edit').value;
+            const skillsVisible = Array.from(document.querySelectorAll('.tailor-skill-toggle'))
+                .filter(cb => cb.checked).map(cb => parseInt(cb.dataset.poolId, 10));
+
+            // Collect accepted new-skill suggestions (with the user's possibly-edited name/category)
+            const newSkillsAccepted = Array.from(document.querySelectorAll('.tailor-new-skill-accept'))
+                .filter(cb => cb.checked)
+                .map(cb => {
+                    const i = cb.dataset.index;
+                    return {
+                        name_en: document.querySelector(`.tailor-new-skill-name-en[data-index="${i}"]`).value.trim(),
+                        name_es: document.querySelector(`.tailor-new-skill-name-es[data-index="${i}"]`).value.trim(),
+                        category: document.querySelector(`.tailor-new-skill-category[data-index="${i}"]`).value,
+                    };
+                })
+                .filter(ns => ns.name_en && ns.name_es);
+
+            const editedSuggestions = {
+                experience: expEdits,
+                summary,
+                skills_visible: skillsVisible,
+                new_skills_accepted: newSkillsAccepted,
+                _meta: preview.suggestions._meta,
+            };
+
+            const language = document.getElementById('tailor-language').value;
+            const company = document.getElementById('tailor-company').value.trim();
+            const jd = document.getElementById('tailor-jd').value.trim();
+            const notes = document.getElementById('tailor-notes').value.trim();
+
+            const commitBtn = document.getElementById('tailor-commit-btn');
+            commitBtn.disabled = true;
+            commitBtn.textContent = 'Saving…';
+            try {
+                const res = await this.apiPost('/tailor/commit', {
+                    base_version_id: preview.base_version_id,
+                    language,
+                    new_name: newName,
+                    new_slug: newSlug,
+                    suggestions: editedSuggestions,
+                    job_description: jd,
+                    company_name: company,
+                    notes,
+                });
+                if (!res || res.error) {
+                    this.notify('Save failed: ' + (res?.error || 'unknown'), 'error');
+                    return;
+                }
+                this.notify('Tailored version created.', 'success');
+                this.closeTailorModal();
+                await this.loadVersions();
+            } catch (err) {
+                this.notify('Save failed: ' + err.message, 'error');
+            } finally {
+                commitBtn.disabled = false;
+                commitBtn.textContent = 'Save as new version';
+            }
+        },
+
+        async apiGet(endpoint) {
             const response = await fetch(API_BASE_URL + endpoint);
             if (response.status === 401) {
                 window.location.href = '/login';

@@ -90,6 +90,9 @@
                         <i class="fas fa-search"></i>
                         <input type="text" id="versions-search" placeholder="Filter versions...">
                     </div>
+                    <button id="tailor-open-btn" class="btn-secondary btn-tailor">
+                        <i class="fas fa-wand-magic-sparkles"></i> Tailor with AI
+                    </button>
                     <ul id="versions-list"></ul>
                 </div>
             </section>
@@ -165,6 +168,98 @@
             <div class="modal-actions">
                 <button id="modal-save-btn" class="btn-primary">Save</button>
                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Tailor Wizard Modal -->
+    <div id="tailor-modal" class="modal-overlay hidden">
+        <div class="modal-content tailor-modal-content">
+
+            <!-- Step 1: input -->
+            <div id="tailor-step-input">
+                <h2><i class="fas fa-wand-magic-sparkles"></i> Create AI-tailored version</h2>
+                <p class="tailor-help">Paste a job description; AI will adapt your experience, summary, and skill selection for that role. You'll review every change before it's saved.</p>
+                <div class="tailor-input-grid">
+                    <div class="form-group">
+                        <label>Base version</label>
+                        <select id="tailor-base-version"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Language</label>
+                        <select id="tailor-language">
+                            <option value="en">English</option>
+                            <option value="es">Español</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Target company <span class="optional">(optional)</span></label>
+                    <input type="text" id="tailor-company" placeholder="e.g. Acme Corp">
+                </div>
+                <div class="form-group">
+                    <label>Job description</label>
+                    <textarea id="tailor-jd" rows="10" placeholder="Paste the job posting here..."></textarea>
+                </div>
+                <div class="form-group tailor-cover-toggle">
+                    <label class="inline-checkbox">
+                        <input type="checkbox" id="tailor-include-cover-letter">
+                        Also generate a cover letter
+                    </label>
+                    <small class="tailor-help">Adds ~250-350 words of cover letter content to the same generation. Optional — leave off to save tokens.</small>
+                </div>
+                <div class="modal-actions">
+                    <button id="tailor-generate-btn" class="btn-primary">Generate</button>
+                    <button class="btn-secondary tailor-close-btn">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 2: preview/edit -->
+            <div id="tailor-step-preview" class="hidden">
+                <h2>Review tailored version</h2>
+                <p class="tailor-help">Edit any field before saving. Each experience entry shows the original on the left and the AI suggestion on the right.</p>
+
+                <div class="tailor-input-grid">
+                    <div class="form-group">
+                        <label>Version name</label>
+                        <input type="text" id="tailor-new-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Slug (URL)</label>
+                        <input type="text" id="tailor-new-slug">
+                    </div>
+                </div>
+
+                <h3>Summary</h3>
+                <div id="tailor-summary-diff" class="diff-pair"></div>
+
+                <h3>Experience</h3>
+                <div id="tailor-experience-list"></div>
+
+                <h3>Skills shown on this version</h3>
+                <p class="tailor-help">AI's selection is pre-checked. Toggle to override.</p>
+                <div id="tailor-skills-list"></div>
+
+                <h3 id="tailor-new-skills-heading" class="hidden">Suggested new skills</h3>
+                <p id="tailor-new-skills-help" class="tailor-help hidden">AI surfaced these from your experience but they're not in your skills library yet. Check the ones you actually have — they'll be added to your global skill pool.</p>
+                <div id="tailor-new-skills-list"></div>
+
+                <div id="tailor-cover-letter-section" class="hidden">
+                    <h3>Cover letter</h3>
+                    <p class="tailor-help">Edit the text below if you want. Nothing is saved server-side — clicking download renders a fresh PDF each time. The CV link in the header uses the slug above.</p>
+                    <textarea id="tailor-cover-letter-text" rows="14"></textarea>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button id="tailor-download-cover-letter-btn" class="btn-secondary"><i class="fas fa-download"></i> Download cover letter (PDF)</button>
+                    </div>
+                </div>
+
+                <h3>Not happy? Regenerate with notes</h3>
+                <textarea id="tailor-notes" rows="2" placeholder="e.g. shorten to 2 bullets each, emphasize backend work, more casual tone"></textarea>
+                <div class="modal-actions">
+                    <button id="tailor-back-btn" class="btn-secondary">Back</button>
+                    <button id="tailor-regenerate-btn" class="btn-secondary">Regenerate</button>
+                    <button id="tailor-commit-btn" class="btn-primary">Save as new version</button>
+                </div>
             </div>
         </div>
     </div>

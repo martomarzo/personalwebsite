@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const puppeteer = require('puppeteer');
 const sharp = require('sharp');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+const { getProvider } = require('./llm/provider');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -197,6 +198,25 @@ async function composeResume(client, version, language) {
         const orderBy = (section === 'experience' || section === 'education')
             ? 'p.end_date DESC NULLS FIRST, p.start_date DESC NULLS LAST, p.id DESC'
             : 'p.id DESC';
+
+        // Experience supports per-version description overrides (AI tailoring).
+        if (section === 'experience') {
+            const result = await client.query(`
+                SELECT p.id AS pool_id, p.company, p.start_date, p.end_date,
+                       d.language, d.role,
+                       COALESCE(o.description, d.description) AS description,
+                       (o.description IS NOT NULL) AS is_tailored
+                FROM experience_pool p
+                JOIN experience_details d ON p.id = d.pool_id
+                JOIN version_experience_visibility v ON p.id = v.pool_id
+                LEFT JOIN version_experience_override o
+                       ON o.version_id = v.version_id AND o.pool_id = p.id AND o.language = d.language
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY ${orderBy};
+            `, [version.id, language]);
+            return result.rows;
+        }
+
         const result = await client.query(`
             SELECT p.*, d.*
             FROM ${tbl}_pool p
@@ -225,14 +245,23 @@ async function composeResume(client, version, language) {
     }
 
     if (version.show_summary) {
-        const result = await client.query(`
-            SELECT p.id, d.content
-            FROM summary_pool p JOIN summary_details d ON p.id = d.pool_id
-            JOIN version_summary_visibility v ON p.id = v.pool_id
-            WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-            ORDER BY p.id DESC LIMIT 1;
-        `, [version.id, language]);
-        resume.summary = result.rows[0] || null;
+        // Per-version override wins over the canonical visible summary, when present.
+        const override = await client.query(
+            'SELECT content FROM version_summary_override WHERE version_id = $1 AND language = $2',
+            [version.id, language]
+        );
+        if (override.rows.length && override.rows[0].content) {
+            resume.summary = { id: null, content: override.rows[0].content, is_tailored: true };
+        } else {
+            const result = await client.query(`
+                SELECT p.id, d.content
+                FROM summary_pool p JOIN summary_details d ON p.id = d.pool_id
+                JOIN version_summary_visibility v ON p.id = v.pool_id
+                WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
+                ORDER BY p.id DESC LIMIT 1;
+            `, [version.id, language]);
+            resume.summary = result.rows[0] || null;
+        }
     }
     return resume;
 }
@@ -449,7 +478,7 @@ app.delete('/api/admin/server-items/:id', async (req, res) => {
 
 app.get('/api/admin/versions', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM resume_versions ORDER BY name');
+        const result = await pool.query('SELECT * FROM resume_versions ORDER BY created_at DESC NULLS LAST, name');
         res.json(result.rows);
     } catch (err) {
         console.error('Error in server sections API:', err.message);
@@ -748,6 +777,349 @@ app.post('/api/admin/skill_categories', async (req, res) => {
     } catch (err) {
         console.error('Error in server sections API:', err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// --- AI TAILORING ---
+// Generate tailored experience descriptions / summary / skill visibility for a job posting,
+// using a base resume version as the source content. Does NOT persist — returns suggestions
+// for the user to review and edit before committing.
+app.post('/api/admin/tailor/preview', async (req, res) => {
+    const { base_version_id, language, job_description, company_name, notes, include_cover_letter } = req.body || {};
+
+    if (!base_version_id || !language || !job_description) {
+        return res.status(400).json({ error: 'base_version_id, language, and job_description are required.' });
+    }
+    if (job_description.length > 12000) {
+        return res.status(400).json({ error: 'job_description exceeds 12,000 character limit.' });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        const version = await fetchVersionRow(client, 'id', base_version_id, language);
+        if (!version) return res.status(404).json({ error: 'Base version not found.' });
+
+        const baseResume = await composeResume(client, version, language);
+
+        // Full skill pool (not just what's visible on this base) — so the AI knows
+        // what already exists when deciding whether to suggest new skills.
+        const allSkillsRes = await client.query(`
+            SELECT p.id, sc.name AS category, d.name
+            FROM skill_pool p
+            LEFT JOIN skill_categories sc ON p.category_id = sc.id
+            JOIN skill_details d ON p.id = d.pool_id
+            WHERE d.language = $1
+            ORDER BY p.id`, [language]);
+        const allSkills = allSkillsRes.rows;
+
+        const categoriesRes = await client.query('SELECT name FROM skill_categories ORDER BY name');
+        const allCategories = categoriesRes.rows.map(r => r.name);
+
+        const provider = getProvider();
+        const suggestions = await provider.tailor({
+            baseResume: { ...baseResume, skills: allSkills, allCategories },
+            jobDescription: job_description,
+            companyName: company_name || '',
+            language,
+            notes: notes || '',
+            includeCoverLetter: !!include_cover_letter,
+            candidateName: version.contact_name || '',
+        });
+
+        res.json({
+            base_version_id,
+            language,
+            suggestions,
+            // ship the canonical view alongside, so the UI can render before/after without a second round-trip
+            base_resume: {
+                experience: baseResume.experience.map(e => ({
+                    pool_id: e.pool_id,
+                    company: e.company,
+                    role: e.role,
+                    description: e.description,
+                })),
+                skills: baseResume.skills.map(s => ({ id: s.id, name: s.name, category: s.category })),
+                summary: baseResume.summary ? baseResume.summary.content : null,
+                all_categories: allCategories,
+            },
+        });
+    } catch (err) {
+        console.error('Tailor preview error:', err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// Persist a tailored version: create a new resume_versions row, copy visibility from base,
+// apply AI-driven skill visibility overrides, write experience/summary text overrides,
+// and record an ai_tailorings audit row — all in one transaction.
+app.post('/api/admin/tailor/commit', async (req, res) => {
+    const {
+        base_version_id, language,
+        new_slug, new_name,
+        suggestions,
+        job_description, company_name, notes,
+    } = req.body || {};
+
+    if (!base_version_id || !language || !new_slug || !new_name || !suggestions) {
+        return res.status(400).json({ error: 'base_version_id, language, new_slug, new_name, and suggestions are required.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. New resume_versions row with metadata copied from the base
+        const newVerRes = await client.query(`
+            INSERT INTO resume_versions (
+                name, slug,
+                title_experience, title_experience_es, show_experience,
+                title_education,  title_education_es,  show_education,
+                title_projects,   title_projects_es,   show_projects,
+                title_skills,     title_skills_es,     show_skills,
+                title_summary,    title_summary_es,    show_summary
+            )
+            SELECT $1, $2,
+                title_experience, title_experience_es, show_experience,
+                title_education,  title_education_es,  show_education,
+                title_projects,   title_projects_es,   show_projects,
+                title_skills,     title_skills_es,     show_skills,
+                title_summary,    title_summary_es,    show_summary
+            FROM resume_versions WHERE id = $3
+            RETURNING id
+        `, [new_name, new_slug, base_version_id]);
+        if (!newVerRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Base version not found.' });
+        }
+        const newVersionId = newVerRes.rows[0].id;
+
+        // 2. Contact info copied from base
+        await client.query(`
+            INSERT INTO contact_info (
+                version_id, name, email, phone, linkedin, github, website,
+                profile_picture, profile_picture_data, profile_picture_mime,
+                subtitle, subtitle_es
+            )
+            SELECT $1, name, email, phone, linkedin, github, website,
+                profile_picture, profile_picture_data, profile_picture_mime,
+                subtitle, subtitle_es
+            FROM contact_info WHERE version_id = $2
+        `, [newVersionId, base_version_id]);
+
+        // 3. Copy visibility for non-skill sections verbatim
+        for (const tbl of ['experience', 'education', 'project', 'summary']) {
+            await client.query(`
+                INSERT INTO version_${tbl}_visibility (version_id, pool_id, is_visible)
+                SELECT $1, pool_id, is_visible
+                FROM version_${tbl}_visibility WHERE version_id = $2
+            `, [newVersionId, base_version_id]);
+        }
+
+        // 4. Skills:
+        //    (a) seed a visibility row for every existing pool entry on the new version (FALSE by default)
+        //    (b) insert any AI-suggested new skills the user accepted (creates skill_pool + en/es details)
+        //    (c) flip is_visible=TRUE for AI's existing-pool picks plus the newly-created skill IDs
+        await client.query(`
+            INSERT INTO version_skill_visibility (version_id, pool_id, is_visible)
+            SELECT $1, p.id, FALSE FROM skill_pool p
+            ON CONFLICT (version_id, pool_id) DO NOTHING
+        `, [newVersionId]);
+
+        const newSkillIds = [];
+        for (const ns of (suggestions.new_skills_accepted || [])) {
+            if (!ns || !ns.name_en || !ns.name_es) continue;
+            let categoryId = null;
+            if (ns.category) {
+                const catRes = await client.query(
+                    'SELECT id FROM skill_categories WHERE LOWER(name) = LOWER($1) LIMIT 1', [ns.category]
+                );
+                categoryId = catRes.rows[0]?.id || null;
+            }
+            const poolRes = await client.query(
+                'INSERT INTO skill_pool (category_id, percentage) VALUES ($1, NULL) RETURNING id',
+                [categoryId]
+            );
+            const newPoolId = poolRes.rows[0].id;
+            await client.query(
+                'INSERT INTO skill_details (pool_id, language, name) VALUES ($1, $2, $3)',
+                [newPoolId, 'en', ns.name_en]
+            );
+            await client.query(
+                'INSERT INTO skill_details (pool_id, language, name) VALUES ($1, $2, $3)',
+                [newPoolId, 'es', ns.name_es]
+            );
+            newSkillIds.push(newPoolId);
+        }
+
+        const visibleIds = [...new Set([...(suggestions.skills_visible || []).map(Number), ...newSkillIds])];
+        if (visibleIds.length) {
+            await client.query(`
+                INSERT INTO version_skill_visibility (version_id, pool_id, is_visible)
+                SELECT $1, p.id, TRUE FROM skill_pool p WHERE p.id = ANY($2)
+                ON CONFLICT (version_id, pool_id) DO UPDATE SET is_visible = TRUE
+            `, [newVersionId, visibleIds]);
+        }
+
+        // 5. Experience description overrides
+        for (const item of (suggestions.experience || [])) {
+            if (!item.pool_id || typeof item.description !== 'string') continue;
+            await client.query(`
+                INSERT INTO version_experience_override (version_id, pool_id, language, description, source)
+                VALUES ($1, $2, $3, $4, 'ai')
+                ON CONFLICT (version_id, pool_id, language)
+                DO UPDATE SET description = $4, source = 'ai', generated_at = now()
+            `, [newVersionId, item.pool_id, language, item.description]);
+        }
+
+        // 6. Summary override
+        if (typeof suggestions.summary === 'string' && suggestions.summary.trim()) {
+            await client.query(`
+                INSERT INTO version_summary_override (version_id, language, content, source)
+                VALUES ($1, $2, $3, 'ai')
+                ON CONFLICT (version_id, language)
+                DO UPDATE SET content = $3, source = 'ai', generated_at = now()
+            `, [newVersionId, language, suggestions.summary]);
+        }
+
+        // 7. Audit trail
+        const meta = suggestions._meta || {};
+        await client.query(`
+            INSERT INTO ai_tailorings (version_id, provider, model, job_description, company_name, notes)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        `, [newVersionId, meta.provider || null, meta.model || null, job_description || null, company_name || null, notes || null]);
+
+        await client.query('COMMIT');
+        res.status(201).json({ id: newVersionId, slug: new_slug, name: new_name });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Tailor commit error:', err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+// --- COVER LETTER PDF ---
+// Generates a one-page cover letter PDF on the fly from user-supplied (possibly AI-generated, possibly edited) text.
+// Nothing is persisted server-side — the PDF is streamed back as a download.
+function escapeHtmlAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+function buildCoverLetterHtml({ text, candidateName, email, linkedin, cvUrl, companyName, language }) {
+    const locale = language === 'es' ? 'es-ES' : 'en-US';
+    const today = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+    const greeting = companyName
+        ? (language === 'es' ? `Equipo de Contratación en ${escapeHtmlAttr(companyName)},` : `Hiring Team at ${escapeHtmlAttr(companyName)},`)
+        : (language === 'es' ? 'A quien corresponda,' : 'To whom it may concern,');
+    const closing = language === 'es' ? 'Atentamente,' : 'Sincerely,';
+
+    const bodyHtml = String(text || '').split(/\n\n+/).map(p => `<p>${escapeHtmlAttr(p.trim())}</p>`).join('');
+
+    return `<!doctype html>
+<html lang="${escapeHtmlAttr(language)}">
+<head>
+<meta charset="utf-8">
+<title>Cover letter</title>
+<style>
+  @page { size: A4; margin: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #111; line-height: 1.6; font-size: 11pt; margin: 0; padding: 0; }
+  .page { padding: 22mm 22mm 22mm 22mm; }
+  .header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 26px; }
+  .header h1 { margin: 0 0 6px; font-size: 22pt; font-weight: 600; letter-spacing: 0.2px; }
+  .contact { font-size: 9.5pt; color: #444; display: flex; flex-wrap: wrap; gap: 14px; }
+  .contact a { color: #444; text-decoration: none; border-bottom: 1px solid transparent; }
+  .date { color: #555; margin-bottom: 18px; }
+  .greeting { margin-bottom: 16px; }
+  p { margin: 0 0 14px; text-align: justify; hyphens: auto; }
+  .closing { margin-top: 24px; }
+  .signature { margin-top: 4px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>${escapeHtmlAttr(candidateName || '')}</h1>
+      <div class="contact">
+        ${email ? `<span>${escapeHtmlAttr(email)}</span>` : ''}
+        ${linkedin ? `<a href="${escapeHtmlAttr(linkedin)}">${escapeHtmlAttr(linkedin)}</a>` : ''}
+        ${cvUrl ? `<a href="${escapeHtmlAttr(cvUrl)}">${escapeHtmlAttr(cvUrl)}</a>` : ''}
+      </div>
+    </div>
+    <div class="date">${escapeHtmlAttr(today)}</div>
+    <div class="greeting">${greeting}</div>
+    ${bodyHtml}
+    <div class="closing">${closing}</div>
+    <div class="signature">${escapeHtmlAttr(candidateName || '')}</div>
+  </div>
+</body>
+</html>`;
+}
+
+async function renderCoverLetterPdf(html) {
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process', '--no-zygote', '--disable-gpu'],
+    });
+    try {
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 });
+        return await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+    } finally {
+        await browser.close();
+    }
+}
+
+app.post('/api/admin/tailor/cover-letter-pdf', async (req, res) => {
+    const { base_version_id, text, company_name, language, target_slug } = req.body || {};
+
+    if (!base_version_id || !text) {
+        return res.status(400).json({ error: 'base_version_id and text are required.' });
+    }
+    if (text.length > 8000) {
+        return res.status(400).json({ error: 'Cover letter text exceeds 8,000 character limit.' });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        const ci = await client.query(
+            'SELECT name, email, linkedin FROM contact_info WHERE version_id = $1',
+            [base_version_id]
+        );
+        const contact = ci.rows[0] || {};
+
+        const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+        const cvUrl = target_slug ? `${baseUrl}/?v=${encodeURIComponent(target_slug)}` : null;
+
+        const html = buildCoverLetterHtml({
+            text,
+            candidateName: contact.name || '',
+            email: contact.email || '',
+            linkedin: contact.linkedin || '',
+            cvUrl,
+            companyName: company_name || '',
+            language: language === 'es' ? 'es' : 'en',
+        });
+
+        const pdf = await serializeRender(() => renderCoverLetterPdf(html));
+
+        const filenameSlug = (company_name || 'cover-letter')
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cover-letter';
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="cover-letter-${filenameSlug}.pdf"`);
+        res.send(Buffer.from(pdf));
+    } catch (err) {
+        console.error('Cover letter PDF error:', err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        if (client) client.release();
     }
 });
 

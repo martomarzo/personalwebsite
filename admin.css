@@ -414,15 +414,31 @@ select:focus {
     gap: 2px;
 }
 
-.version-slug {
+.version-slug, .version-slug-link {
     font-size: 0.75rem;
     color: var(--text-muted);
     font-family: monospace;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
 }
 
-.active .version-slug {
+.version-slug-link:hover {
     color: var(--accent);
-    opacity: 0.8;
+    text-decoration: underline;
+}
+
+.version-slug-link i {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.active .version-slug,
+.active .version-slug-link {
+    color: var(--accent);
+    opacity: 0.85;
 }
 
 .version-actions {
@@ -1041,4 +1057,213 @@ th.sortable::after {
 .lang-menu button:hover {
     background-color: var(--accent-dim);
     color: var(--accent-light);
+}
+
+/* --- AI Tailor Wizard --- */
+.btn-tailor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    font-size: 0.9rem;
+}
+.tailor-modal-content {
+    max-width: 1100px;
+}
+.tailor-help {
+    color: var(--text-light);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+.tailor-help .optional {
+    color: var(--text-light);
+    font-weight: normal;
+    font-size: 0.85rem;
+}
+.tailor-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.tailor-input-grid + .form-group { margin-top: 0; }
+#tailor-jd, #tailor-notes {
+    width: 100%;
+    font-family: inherit;
+    padding: 10px;
+    background-color: var(--input-bg, var(--accent-dim));
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    resize: vertical;
+}
+.tailor-loading {
+    text-align: center;
+    padding: 60px 20px;
+}
+.tailor-loading .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.diff-pair, .diff-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: stretch;
+}
+.diff-original, .diff-tailored {
+    background-color: var(--accent-dim);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+.diff-original {
+    opacity: 0.85;
+}
+.diff-original label, .diff-tailored label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-light);
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+.diff-original .diff-text {
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+.diff-tailored textarea {
+    width: 100%;
+    min-height: 110px;
+    font-family: inherit;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    padding: 8px;
+    resize: vertical;
+    flex: 1;
+}
+.exp-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+.exp-card-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--accent);
+}
+.exp-card-header .role-company {
+    color: var(--text-light);
+    font-weight: normal;
+    font-size: 0.9rem;
+    margin-left: 8px;
+}
+#tailor-skills-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--accent-dim);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+}
+#tailor-skills-list label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.new-skill-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    margin-bottom: 8px;
+    background-color: var(--accent-dim);
+}
+.new-skill-accept {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.new-skill-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.new-skill-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+.new-skill-row input, .new-skill-row select {
+    padding: 6px 8px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+.new-skill-evidence {
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--text-light);
+}
+
+.inline-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    text-transform: none;
+}
+.inline-checkbox input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+.tailor-cover-toggle {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    padding: 10px 14px;
+}
+#tailor-cover-letter-section {
+    margin-top: 24px;
+}
+#tailor-cover-letter-text {
+    width: 100%;
+    font-family: Georgia, 'Times New Roman', serif;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    padding: 12px;
+    line-height: 1.6;
+    resize: vertical;
 }

@@ -1,6 +1,9 @@
 -- Drop only the tables used by the current application
 DROP TABLE IF EXISTS
     pdf_cache,
+    ai_tailorings,
+    version_experience_override,
+    version_summary_override,
     version_experience_visibility,
     version_education_visibility,
     version_project_visibility,
@@ -42,7 +45,8 @@ CREATE TABLE resume_versions (
     show_skills BOOLEAN DEFAULT true,
     title_summary VARCHAR(255) DEFAULT 'Summary',
     title_summary_es VARCHAR(255) DEFAULT 'Resumen',
-    show_summary BOOLEAN DEFAULT true
+    show_summary BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE contact_info (
@@ -105,6 +109,41 @@ CREATE TABLE server_items (
     function VARCHAR(255), -- for table rows
     display_order INTEGER DEFAULT 0,
     is_visible BOOLEAN DEFAULT true
+);
+
+-- AI-tailored version overrides. When present, override the canonical pool
+-- content for a specific (version, pool_id, language) tuple. Absence means
+-- the version falls back to the pool's canonical text.
+CREATE TABLE version_experience_override (
+    version_id INTEGER NOT NULL REFERENCES resume_versions(id) ON DELETE CASCADE,
+    pool_id    INTEGER NOT NULL REFERENCES experience_pool(id) ON DELETE CASCADE,
+    language   VARCHAR(10) NOT NULL,
+    description TEXT,
+    source     VARCHAR(20) DEFAULT 'ai',  -- 'ai' | 'manual'
+    generated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (version_id, pool_id, language)
+);
+
+CREATE TABLE version_summary_override (
+    version_id INTEGER NOT NULL REFERENCES resume_versions(id) ON DELETE CASCADE,
+    language   VARCHAR(10) NOT NULL,
+    content    TEXT,
+    source     VARCHAR(20) DEFAULT 'ai',
+    generated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (version_id, language)
+);
+
+-- Audit trail of AI tailoring runs (one row per generation), so a version can
+-- be regenerated with a tweak later and the original prompt can be recovered.
+CREATE TABLE ai_tailorings (
+    id SERIAL PRIMARY KEY,
+    version_id INTEGER REFERENCES resume_versions(id) ON DELETE CASCADE,
+    provider VARCHAR(50),
+    model VARCHAR(100),
+    job_description TEXT,
+    company_name VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Cache of generated PDF exports. Keyed by (version, language). content_hash is

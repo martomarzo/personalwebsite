@@ -9,6 +9,7 @@
     "postinstall": "puppeteer browsers install chrome"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
