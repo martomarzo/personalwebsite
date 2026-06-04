@@ -938,9 +938,14 @@ app.post('/api/admin/tailor/commit', async (req, res) => {
                 );
                 categoryId = catRes.rows[0]?.id || null;
             }
+            let percentage = null;
+            if (ns.percentage !== null && ns.percentage !== undefined && ns.percentage !== '') {
+                const pct = parseInt(ns.percentage, 10);
+                if (!Number.isNaN(pct)) percentage = Math.max(0, Math.min(100, pct));
+            }
             const poolRes = await client.query(
-                'INSERT INTO skill_pool (category_id, percentage) VALUES ($1, NULL) RETURNING id',
-                [categoryId]
+                'INSERT INTO skill_pool (category_id, percentage) VALUES ($1, $2) RETURNING id',
+                [categoryId, percentage]
             );
             const newPoolId = poolRes.rows[0].id;
             await client.query(
