@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.documentElement.classList.add('light-mode');
             }
 
+            // Respect users who prefer reduced motion: skip all GSAP animations.
+            this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            this.noAnim = this.printMode || this.reducedMotion;
+
             if (document.body.classList.contains('page-portfolio')) {
                 this.handleNavLinks();
                 this.updateActiveNavLinkOnScroll();
@@ -20,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.loadPortfolioContent();
                 this.initDarkMode();
                 this.initLanguageSwitcher();
+                if (!this.printMode) this.initScrollProgress();
             }
 
             if (document.body.classList.contains('page-server-info')) {
@@ -228,11 +233,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof gsap === 'undefined') return;
             gsap.registerPlugin(ScrollTrigger);
 
-            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-            tl.from('.page-portfolio .profile-pic', { opacity: 0, scale: 0.88, duration: 0.7 })
-              .from('.page-portfolio h1',           { opacity: 0, y: 20, duration: 0.5 }, '-=0.3')
-              .from('.page-portfolio .subtitle',    { opacity: 0, y: 14, duration: 0.45 }, '-=0.25')
-              .from('.page-portfolio .contact-info a', { opacity: 0, y: 10, stagger: 0.08, duration: 0.4 }, '-=0.2');
+            const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
+            tl.from('.page-portfolio .profile-pic', { opacity: 0, y: 16, duration: 0.6 })
+              .from('.page-portfolio .subtitle',    { opacity: 0, y: 14, duration: 0.5 }, '-=0.35')
+              .from('.page-portfolio h1',           { opacity: 0, y: 40, duration: 0.8 }, '-=0.3')
+              .from('.page-portfolio .hero-actions a', { opacity: 0, y: 14, stagger: 0.08, duration: 0.5 }, '-=0.45')
+              .from('.page-portfolio .contact-info a', { opacity: 0, y: 10, stagger: 0.06, duration: 0.4 }, '-=0.35');
         },
 
         initScrollTriggerAnimations() {
@@ -318,13 +324,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.updateSectionTitles(resumeData.version);
                 this.updateSectionVisibility(resumeData.version);
                 this.renderContactInfo(resumeData.version);
-                if (!this.printMode) this.initHeroAnimations();
+                if (!this.noAnim) this.initHeroAnimations();
                 this.renderSummary(resumeData.summary, resumeData.version);
                 this.renderExperience(resumeData.experience || []);
                 this.renderEducation(resumeData.education || []);
                 this.renderProjects(resumeData.projects || []);
                 this.renderSkills(resumeData.skills || []);
-                if (!this.printMode) this.initScrollTriggerAnimations();
+                if (!this.noAnim) this.initScrollTriggerAnimations();
                 this.initSkillBarsAnimation();
 
             } catch (error) {
@@ -347,8 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 es: { home: 'Inicio' }
             };
             const t = translations[lang] || translations.en;
-            const homeLink = document.querySelector('.resume-nav a[href="#home"]');
-            if (homeLink) homeLink.textContent = t.home;
+            const homeLink = document.querySelector('.resume-nav .nav-logo');
+            if (homeLink) homeLink.setAttribute('aria-label', t.home);
         },
 
         updateSectionTitles(versionData) {
@@ -409,11 +415,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     `
                     <div class="experience-header">
                         <div class="job-title">
-                            <h3><i class="fas fa-briefcase"></i> ${item.role}</h3>
+                            <h3>${item.role}</h3>
                         </div>
                         <div class="company-date">
                             <span class="company">${item.company}</span>
-                            <span class="date"><i class="far fa-calendar-alt"></i> ${startDate} - ${endDate}</span>
+                            <span class="date">${startDate} — ${endDate}</span>
                         </div>
                     </div>
                     <div class="experience-description">
@@ -470,21 +476,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const linkAttr = isExternal ? 'target="_blank" rel="noopener"' : '';
-                const iconAttr = isExternal ? '<i class="fas fa-external-link-alt" style="margin-left: 8px; font-size: 0.8em;"></i>' : '<i class="fas fa-arrow-right" style="margin-left: 8px; font-size: 0.8em;"></i>';
+                const iconAttr = isExternal ? '<i class="fas fa-arrow-up-right-from-square" style="font-size: 0.75em;"></i>' : '<i class="fas fa-arrow-right" style="font-size: 0.75em;"></i>';
 
                 div.innerHTML = (
                     `
                     <div class="project-content">
-                        <h3 class="project-title"><i class="fas fa-laptop-code"></i> ${item.name}</h3>
+                        <h3 class="project-title">${item.name}</h3>
                         <p class="project-description">${item.description}</p>
-                        ${finalLink ? `<a href="${finalLink}" class="btn" ${linkAttr}>Check it out ${iconAttr}</a>` : ''}
+                        ${finalLink ? `<a href="${finalLink}" class="btn" ${linkAttr}>View project ${iconAttr}</a>` : ''}
                     </div>
                 `
                 );
                 container.appendChild(div);
             });
 
-            if (!this.printMode && typeof gsap !== 'undefined') {
+            if (!this.noAnim && typeof gsap !== 'undefined') {
                 gsap.set(container.querySelectorAll('.project-card'), { opacity: 0, y: 30 });
             }
         },
@@ -515,6 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const skillsList = document.createElement('ul');
                 skills.forEach(skill => {
                     const skillItem = document.createElement('li');
+                    // Strong skills (85%+) get the accent chip treatment.
+                    if ((skill.percentage || 0) >= 85) skillItem.classList.add('skill-strong');
                     skillItem.innerHTML = (
                         `
                         <span class="skill-name">${skill.name}</span>
@@ -529,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.appendChild(categoryDiv);
             });
 
-            if (!this.printMode && typeof gsap !== 'undefined') {
+            if (!this.noAnim && typeof gsap !== 'undefined') {
                 gsap.set(container.querySelectorAll('.skill-category'), { opacity: 0, y: 24 });
             }
 
@@ -576,9 +584,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderContactInfo(versionData) {
             const headerContact = document.querySelector('header .contact-info');
+            const heroActions = document.querySelector('header .hero-actions');
+            const navLinks = document.querySelector('.resume-nav .nav-links');
             const footerSocial = document.querySelector('footer .social-links');
+            const footerCta = document.querySelector('footer .footer-cta');
             const profilePic = document.querySelector('.profile-pic');
             const profileName = document.querySelector('header h1');
+
+            if (heroActions) {
+                heroActions.innerHTML = `
+                    ${versionData.email ? `<a class="pill pill-primary" href="mailto:${versionData.email}">Get in touch</a>` : ''}
+                    ${versionData.linkedin ? `<a class="pill pill-secondary" href="${versionData.linkedin}" target="_blank" rel="noopener">LinkedIn <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.7em;"></i></a>` : ''}
+                `;
+            }
+
+            if (navLinks && versionData.email && !navLinks.querySelector('.nav-contact')) {
+                const contactLink = document.createElement('a');
+                contactLink.className = 'nav-contact';
+                contactLink.href = `mailto:${versionData.email}`;
+                contactLink.textContent = 'Contact';
+                navLinks.appendChild(contactLink);
+            }
+
+            if (footerCta && versionData.email) {
+                footerCta.href = `mailto:${versionData.email}`;
+                footerCta.classList.add('visible');
+            }
 
             if (headerContact) {
                 headerContact.innerHTML = `
@@ -657,8 +688,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.textContent = `Made with ❤️ by Me. Last Update: ${new Date().getFullYear()}`;
         },
 
+        initScrollProgress() {
+            const bar = document.createElement('div');
+            bar.className = 'scroll-progress';
+            document.body.appendChild(bar);
+
+            let raf;
+            const update = () => {
+                const max = document.documentElement.scrollHeight - window.innerHeight;
+                const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+                bar.style.width = `${pct}%`;
+            };
+            window.addEventListener('scroll', () => {
+                cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(update);
+            }, { passive: true });
+            update();
+        },
+
         initSkillBarsAnimation() {
-            if (!this.printMode && typeof gsap !== 'undefined') {
+            if (!this.noAnim && typeof gsap !== 'undefined') {
                 document.querySelectorAll('.page-portfolio .skill-fill').forEach(fill => {
                     const level = fill.getAttribute('data-level') || 0;
                     gsap.to(fill, {

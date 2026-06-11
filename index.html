@@ -6,8 +6,8 @@
     <title>Martín Marzorati - Project Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=3.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -16,26 +16,31 @@
 </head>
 <body class="page-portfolio">
 <script>(function(){var s=localStorage.getItem('theme-mode');if(s==='light')document.documentElement.classList.add('light-mode');}());</script> 
+    <nav class="resume-nav">
+        <div class="container nav-container">
+            <a href="#home" class="nav-logo" aria-label="Home">MM©</a>
+            <div class="nav-links">
+                <a href="#about">About</a>
+                <a href="#experience">Experience</a>
+                <a href="#skills">Skills</a>
+                <a href="#projects">Projects</a>
+                <a href="#education">Education</a>
+            </div>
+        </div>
+    </nav>
+
     <header id="home">
         <div class="container header-content">
             <img class="profile-pic" src="photos/Martin.jpg" alt="Profile Picture">
-            <h1></h1>
             <p class="subtitle"></p>
-            <div class="contact-info">
+            <h1></h1>
+            <div class="hero-row">
+                <div class="hero-actions"></div>
+                <div class="contact-info">
+                </div>
             </div>
         </div>
     </header>
-
-    <nav class="resume-nav">
-        <div class="container nav-container">
-            <a href="#home" class="active">Home</a>
-            <a href="#about">About</a>
-            <a href="#experience">Experience</a>
-            <a href="#skills">Skills</a>
-            <a href="#projects">Projects</a>
-            <a href="#education">Education</a>
-        </div>
-    </nav>
 
     <section id="about">
         <div class="container">
@@ -77,14 +82,20 @@
     <footer>
 
         <div class="container">
-            <p class="footer-text">© 202rati. All rights reserved.</p>
-            <div class="social-links">
+            <a class="footer-cta" href="#">
+                <span class="footer-cta-text">Let's work together</span>
+                <span class="footer-cta-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+            <div class="footer-bottom">
+                <p class="footer-text">© 2026 Martín Marzorati. All rights reserved.</p>
+                <div class="social-links">
+                </div>
             </div>
             <!-- <a href="files/Martin Project Manager Resume.pdf" class="download-cv">Download CV</a> -->
         </div>
     </footer>
 
-    <script src="portfolio-main.js?v=1.3"></script>
+    <script src="portfolio-main.js?v=2.0"></script>
 
 </body>
 </html>
