@@ -614,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (headerContact) {
                 headerContact.innerHTML = `
                     ${versionData.email ? `<a href="mailto:${versionData.email}" title="${versionData.email}"><i class="fas fa-envelope"></i></a>` : ''}
-                    ${versionData.phone ? `<a href="tel:${versionData.phone}" title="${versionData.phone}"><i class="fas fa-phone"></i></a>` : ''}
+                    ${versionData.phone ? `<a href="https://wa.me/${versionData.phone.replace(/[^\d]/g, '')}" target="_blank" rel="noopener" title="WhatsApp: ${versionData.phone}"><i class="fab fa-whatsapp"></i></a>` : ''}
                     ${versionData.linkedin ? `<a href="${versionData.linkedin}" target="_blank" rel="noopener" title="LinkedIn"><i class="fab fa-linkedin"></i></a>` : ''}
                     ${versionData.github ? `<a href="${versionData.github}" target="_blank" rel="noopener" title="GitHub"><i class="fab fa-github"></i></a>` : ''}
                     ${versionData.website ? `<a href="${versionData.website}" target="_blank" rel="noopener" title="Website"><i class="fas fa-globe"></i></a>` : ''}
