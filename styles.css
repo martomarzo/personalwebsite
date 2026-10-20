@@ -510,11 +510,11 @@ html.menu-open :where(.page-portfolio, .page-server-info) .mobile-menu-footer { 
 
 :where(.page-portfolio, .page-server-info) .hero {
   position: relative;
-  min-height: max(620px, 94svh);
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: calc(var(--nav-h) + 56px) 0 clamp(64px, 9vh, 104px);
+  /* Content sits a fixed, screen-proportional distance below the nav; the hero's
+     height follows its content instead of filling the viewport. */
+  padding: calc(var(--nav-h) + clamp(48px, 9vh, 104px)) 0 clamp(88px, 13vh, 144px);
   overflow: hidden;
   isolation: isolate;
 }
@@ -1199,7 +1199,7 @@ html.no-motion .tl-dot {
 
 :where(.page-portfolio, .page-server-info) .server-hero {
   position: relative;
-  padding: calc(var(--nav-h) + clamp(64px, 10vw, 120px)) 0 clamp(56px, 7vw, 88px);
+  padding: calc(var(--nav-h) + clamp(48px, 9vh, 104px)) 0 clamp(56px, 7vw, 88px);
   border-bottom: 1px solid var(--border-color);
   overflow: hidden;
   isolation: isolate;
@@ -1407,7 +1407,7 @@ html.no-motion .tl-dot {
   :root { --nav-h: 60px; }
   .container { padding: 0 20px; }
 
-  :where(.page-portfolio, .page-server-info) .hero { min-height: max(560px, 88svh); padding-top: calc(var(--nav-h) + 40px); }
+  :where(.page-portfolio, .page-server-info) .hero { padding-top: calc(var(--nav-h) + 40px); padding-bottom: 72px; }
   :where(.page-portfolio, .page-server-info) .hero-top { gap: 14px; }
   :where(.page-portfolio, .page-server-info) .profile-pic { width: 60px; height: 60px; }
   :where(.page-portfolio, .page-server-info) .subtitle { font-size: 0.68rem; letter-spacing: 0.18em; }

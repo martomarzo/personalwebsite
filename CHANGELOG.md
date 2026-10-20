@@ -5,7 +5,7 @@ What changed for visitors of the CV site and for the admin, one section per work
 ## 2026-10-20 — Design refresh
 
 **Website**
-- New look throughout, keeping the same dark editorial style: a full-screen hero where your name reveals letter by letter, a soft light that follows the cursor, film grain, and buttons that lean toward the pointer.
+- New look throughout, keeping the same dark editorial style: a hero where your name reveals letter by letter, a soft light that follows the cursor, film grain, and buttons that lean toward the pointer.
 - The summary lights up word by word as you scroll; experience and education are now a timeline with dates on the left, how long each role lasted ("2 yrs 8 mos"), and a line that fills in as you read.
 - Skills are grouped in rows by category; projects are fully clickable cards with a glow that follows the cursor.
 - Smooth, weighted scrolling; the top bar hides while scrolling down and returns when scrolling up.
