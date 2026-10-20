@@ -107,6 +107,7 @@ CREATE TABLE server_items (
     icon VARCHAR(100),
     platform VARCHAR(100), -- for table rows
     function VARCHAR(255), -- for table rows
+    item_type VARCHAR(50), -- 'service' | 'spec' (node layout)
     display_order INTEGER DEFAULT 0,
     is_visible BOOLEAN DEFAULT true
 );

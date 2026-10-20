@@ -64,5 +64,14 @@ Prerequisites: Node.js 18+ and PostgreSQL.
 
 Tests: `npm test` (PDF template tests, no database needed).
 
+## Environments (Render)
+
+| | Branch | URL | Database |
+|---|---|---|---|
+| Live | `main` | https://about.martomarzo.com | `resume_jf50` |
+| Dev | `dev` | https://personalwebsite-dev.onrender.com | `resume_dev` (copy of live data from 2026-10-20) |
+
+Workflow: push to `dev` → check it on the dev site → merge `dev` into `main` and push → live deploys automatically. The dev service is on Render's free plan, so it sleeps after 15 minutes without visits and takes about a minute to wake up. Editing content on the dev admin only changes `resume_dev`.
+
 ## License
 © 2025–2026 Martín Marzorati. All rights reserved.
