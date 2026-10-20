@@ -1,101 +1,161 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="is-loading">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Martín Marzorati - Project Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Martín Marzorati — Project Manager / Producer</title>
+    <meta name="description" content="Project Manager and Producer with 7+ years leading cross-functional teams in digital media and tech. Experience, skills, projects and contact.">
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+    <meta name="color-scheme" content="dark light">
+
+    <meta property="og:type" content="profile">
+    <meta property="og:title" content="Martín Marzorati — Project Manager / Producer">
+    <meta property="og:description" content="Project Manager and Producer with 7+ years leading cross-functional teams in digital media and tech.">
+    <meta property="og:image" content="/photos/Martin.jpg">
+    <meta name="twitter:card" content="summary">
+
+    <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=3.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <link rel="stylesheet" href="styles.css?v=4.0">
+
+    <script>
+        (function () {
+            try { if (localStorage.getItem('theme-mode') === 'light') document.documentElement.classList.add('light-mode'); } catch (e) {}
+            // Never leave the page blank if the data request hangs.
+            setTimeout(function () { document.documentElement.classList.remove('is-loading'); }, 6000);
+        }());
+    </script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+    <script defer src="portfolio-main.js?v=4.0"></script>
     <script defer data-domain="about.martomarzo.com" src="https://plausible.io/js/script.js"></script>
 </head>
 <body class="page-portfolio">
-<script>(function(){var s=localStorage.getItem('theme-mode');if(s==='light')document.documentElement.classList.add('light-mode');}());</script> 
-    <nav class="resume-nav">
-        <div class="container nav-container">
-            <a href="#home" class="nav-logo" aria-label="Home">MM©</a>
-            <div class="nav-links">
-                <a href="#about">About</a>
-                <a href="#experience">Experience</a>
-                <a href="#skills">Skills</a>
-                <a href="#projects">Projects</a>
-                <a href="#education">Education</a>
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+    <div class="scroll-progress" aria-hidden="true"></div>
+
+    <nav class="site-nav" aria-label="Primary">
+        <div class="container nav-inner">
+            <a href="#home" class="nav-logo" aria-label="Home">MM<span>©</span></a>
+
+            <div class="nav-links" role="list">
+                <a href="#about" data-nav="about" role="listitem">About</a>
+                <a href="#experience" data-nav="experience" role="listitem">Experience</a>
+                <a href="#skills" data-nav="skills" role="listitem">Skills</a>
+                <a href="#projects" data-nav="projects" role="listitem">Projects</a>
+                <a href="#education" data-nav="education" role="listitem">Education</a>
+                <span class="nav-indicator" aria-hidden="true"></span>
+            </div>
+
+            <div class="nav-tools">
+                <div class="lang-switch" role="group" aria-label="Language">
+                    <button type="button" class="lang-btn" data-lang="en" lang="en">EN</button>
+                    <button type="button" class="lang-btn" data-lang="es" lang="es">ES</button>
+                    <span class="lang-thumb" aria-hidden="true"></span>
+                </div>
+                <button type="button" class="icon-btn theme-toggle" aria-label="Switch theme">
+                    <i class="fas fa-sun icon-sun" aria-hidden="true"></i>
+                    <i class="fas fa-moon icon-moon" aria-hidden="true"></i>
+                </button>
+                <a class="nav-contact" href="#contact" data-i18n="contact">Contact</a>
+                <button type="button" class="menu-btn" aria-expanded="false" aria-controls="mobile-menu">
+                    <span class="menu-btn-label" data-i18n="menu">Menu</span>
+                    <span class="menu-btn-lines" aria-hidden="true"><span></span><span></span></span>
+                </button>
             </div>
         </div>
     </nav>
 
-    <header id="home">
-        <div class="container header-content">
-            <img class="profile-pic" src="photos/Martin.jpg" alt="Profile Picture">
-            <p class="subtitle"></p>
-            <h1></h1>
+    <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+        <div class="container mobile-menu-inner">
+            <ol class="mobile-menu-links"></ol>
+            <div class="mobile-menu-footer">
+                <a class="pill pill-primary mobile-contact" href="#contact" data-i18n="getInTouch">Get in touch</a>
+                <button type="button" class="pill pill-secondary mobile-download" data-download>
+                    <i class="fas fa-arrow-down" aria-hidden="true"></i> <span data-i18n="downloadCv">Download CV</span>
+                </button>
+                <button type="button" class="icon-btn theme-toggle" aria-label="Switch theme">
+                    <i class="fas fa-sun icon-sun" aria-hidden="true"></i>
+                    <i class="fas fa-moon icon-moon" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <header id="home" class="hero">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="container hero-inner">
+            <div class="hero-top">
+                <img class="profile-pic" src="photos/Martin.jpg" alt="" width="112" height="112" decoding="async">
+                <p class="subtitle"></p>
+            </div>
+            <h1 class="hero-name"></h1>
             <div class="hero-row">
                 <div class="hero-actions"></div>
-                <div class="contact-info">
-                </div>
+                <ul class="contact-info" aria-label="Contact links"></ul>
             </div>
+            <p class="print-contact" aria-hidden="true"></p>
         </div>
+        <div class="scroll-cue" aria-hidden="true"><span>Scroll</span><i></i></div>
     </header>
 
-    <section id="about">
-        <div class="container">
-            <h2 id="about-h2">Professional Summary</h2>
-            <p class="summary"></p>
-        </div>
-    </section>
-
-    <section id="experience">
-        <div class="container">
-            <h2 id="experience-h2">Professional Experience</h2>
-            
-        </div>
-    </section>
-
-    <section id="skills">
-        <div class="container">
-            <h2 id="skills-h2">Technical Skills & Expertise</h2>
-            <div class="skills-container">
+    <main id="main">
+        <section id="about" class="section">
+            <div class="container">
+                <h2 id="about-h2" class="section-title">Professional Summary</h2>
+                <p class="summary"></p>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="projects">
-        <div class="container">
-            <h2 id="projects-h2">Personal Projects</h2>
-            <div class="projects-container">
+        <section id="experience" class="section">
+            <div class="container">
+                <h2 id="experience-h2" class="section-title">Professional Experience</h2>
+                <ol class="timeline" data-kind="experience"></ol>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="education">
-        <div class="container">
-            <h2 id="education-h2">Education</h2>
+        <section id="skills" class="section">
+            <div class="container">
+                <h2 id="skills-h2" class="section-title">Technical Skills &amp; Expertise</h2>
+                <div class="skills-list"></div>
+            </div>
+        </section>
 
-        </div>
-    </section>
+        <section id="projects" class="section">
+            <div class="container">
+                <h2 id="projects-h2" class="section-title">Personal Projects</h2>
+                <div class="projects-grid"></div>
+            </div>
+        </section>
 
-    <footer>
+        <section id="education" class="section">
+            <div class="container">
+                <h2 id="education-h2" class="section-title">Education</h2>
+                <ol class="timeline timeline-compact" data-kind="education"></ol>
+            </div>
+        </section>
+    </main>
 
+    <footer id="contact" class="site-footer">
         <div class="container">
             <a class="footer-cta" href="#">
-                <span class="footer-cta-text">Let's work together</span>
-                <span class="footer-cta-arrow" aria-hidden="true">&rarr;</span>
+                <span class="footer-cta-text" data-i18n="letsWork">Let's work together</span>
+                <span class="footer-cta-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span>
             </a>
-            <div class="footer-bottom">
-                <p class="footer-text">© 2026 Martín Marzorati. All rights reserved.</p>
-                <div class="social-links">
-                </div>
+            <div class="footer-grid">
+                <div class="footer-email"></div>
+                <ul class="footer-links"></ul>
             </div>
-            <!-- <a href="files/Martin Project Manager Resume.pdf" class="download-cv">Download CV</a> -->
+            <div class="footer-bottom">
+                <p class="footer-text"></p>
+                <a href="#home" class="back-to-top"><span data-i18n="backToTop">Back to top</span> <i class="fas fa-arrow-up" aria-hidden="true"></i></a>
+            </div>
         </div>
     </footer>
-
-    <script src="portfolio-main.js?v=2.0"></script>
-
 </body>
 </html>

@@ -3,266 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Martín Marzorati Portfolio</title>
+    <title>Admin · Martín Marzorati</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
-        const saved = localStorage.getItem('theme-mode');
-        if (saved === 'light') document.documentElement.classList.add('light-mode');
+        try {
+            if (localStorage.getItem('theme-mode') === 'light') document.documentElement.classList.add('light-mode');
+        } catch (e) { /* storage blocked: keep dark */ }
     </script>
 </head>
 <body class="admin-body">
-    <header>
-        <div class="container header-content-admin">
-            <div>
-                <h1>Admin Panel</h1>
-                <p>Manage your resume versions and content.</p>
-            </div>
-            <div class="header-actions">
-                <button id="admin-theme-toggle" title="Toggle theme"><i class="fas fa-moon"></i></button>
-                <button id="logout-btn" class="btn-danger">Logout</button>
+    <!-- Top app bar -->
+    <header class="adm-topbar">
+        <div class="adm-shell adm-topbar-inner">
+            <a class="adm-brand" href="/admin" aria-label="Admin home">
+                <span class="adm-mark">MM<span>©</span></span>
+                <span class="adm-brand-sep" aria-hidden="true">/</span>
+                <span class="adm-brand-label">Admin</span>
+            </a>
+            <div class="adm-topbar-actions">
+                <a id="view-site-link" class="btn btn-ghost btn-sm view-site-link" href="/" target="_blank" rel="noopener">
+                    <span class="view-site-text">View site</span><span class="view-site-arrow" aria-hidden="true">↗</span>
+                </a>
+                <span class="adm-topbar-divider" aria-hidden="true"></span>
+                <button id="admin-theme-toggle" class="btn-icon" type="button" aria-label="Toggle theme"><i class="fas fa-sun" aria-hidden="true"></i></button>
+                <button id="logout-btn" class="btn-icon" type="button" aria-label="Log out" data-tooltip="Log out" data-tooltip-pos="bottom-end"><i class="fas fa-right-from-bracket" aria-hidden="true"></i></button>
             </div>
         </div>
     </header>
 
-    <!-- Global Profile: always visible, full-width -->
-    <section id="global-profile-section" class="admin-global-profile">
-        <div class="global-profile-header">
-            <h2><i class="fas fa-globe"></i> Global Profile <span class="header-badge">Shared across all versions</span></h2>
-            <button id="save-profile-btn" class="btn-primary">Save Profile</button>
+    <main class="adm-shell adm-page" id="admin-main">
+        <div class="page-head">
+            <h1 class="page-title">Resume admin</h1>
+            <p class="page-sub">Your profile, resume versions and the content library they draw from.</p>
         </div>
-        <form id="global-profile-form">
-            <div class="global-profile-grid">
-                <div class="form-group profile-pic-group">
-                    <label>Profile Picture</label>
-                    <input type="hidden" id="contact-profile_picture" name="profile_picture">
-                    <div class="profile-pic-col">
-                        <div id="current-profile-pic-preview" class="profile-pic-preview"></div>
-                        <input type="file" id="contact-profile-pic" name="profile_pic" accept="image/*">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="contact-name" name="name" placeholder="Your Name">
-                </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="contact-email" name="email" placeholder="Email">
-                </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input type="tel" id="contact-phone" name="phone" placeholder="Phone">
-                </div>
-                <div class="form-group">
-                    <label>LinkedIn</label>
-                    <input type="url" id="contact-linkedin" name="linkedin" placeholder="LinkedIn URL">
-                </div>
-                <div class="form-group">
-                    <label>GitHub</label>
-                    <input type="url" id="contact-github" name="github" placeholder="GitHub URL">
-                </div>
-                <div class="form-group">
-                    <label>Website</label>
-                    <input type="url" id="contact-website" name="website" placeholder="Website URL">
-                </div>
+
+        <!-- Global profile (shared by all versions) -->
+        <section id="global-profile-section" class="panel profile-panel" aria-labelledby="profile-title">
+            <div class="panel-head">
+                <button id="profile-collapse-btn" class="panel-toggle" type="button" aria-expanded="true" aria-controls="profile-body">
+                    <span class="profile-mini" aria-hidden="true"><span id="profile-mini-avatar" class="profile-mini-avatar"></span></span>
+                    <span class="panel-toggle-text">
+                        <span class="panel-title" id="profile-title">Profile</span>
+                        <span class="panel-sub" id="profile-summary">Shared across all versions</span>
+                    </span>
+                    <i class="fas fa-chevron-down panel-chevron" aria-hidden="true"></i>
+                </button>
+                <button id="save-profile-btn" class="btn btn-primary btn-sm" type="button">Save profile</button>
             </div>
-        </form>
-    </section>
-
-    <div class="admin-container">
-        <!-- Left Column: Versions & Settings -->
-        <aside class="admin-sidebar">
-            <section id="versions-manager" class="sidebar-card">
-                <div class="versions-card-header">
-                    <h2>Resume Versions</h2>
-                    <button id="versions-collapse-btn" class="btn-icon" title="Collapse list"><i class="fas fa-chevron-up"></i></button>
-                </div>
-                <div id="versions-body">
-                    <div class="add-version-form">
-                        <input type="text" id="new-version-name" placeholder="Create new version...">
-                        <button id="add-version-btn" class="btn-primary">Add</button>
+            <div id="profile-body" class="panel-body profile-body">
+                <form id="global-profile-form" class="profile-grid" autocomplete="off">
+                    <div class="photo-field">
+                        <input type="hidden" id="contact-profile_picture" name="profile_picture">
+                        <input type="file" id="contact-profile-pic" name="profile_pic" accept="image/*" class="visually-hidden" tabindex="-1" aria-hidden="true">
+                        <button type="button" id="photo-drop" class="photo-drop" aria-describedby="photo-hint">
+                            <span id="current-profile-pic-preview" class="photo-preview"></span>
+                            <span class="photo-overlay" aria-hidden="true"><i class="fas fa-camera"></i><span>Change</span></span>
+                            <span class="visually-hidden">Change profile photo</span>
+                        </button>
+                        <p id="photo-hint" class="photo-hint">Click or drop an image</p>
                     </div>
-                    <div class="versions-search-wrap">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="versions-search" placeholder="Filter versions...">
-                    </div>
-                    <button id="tailor-open-btn" class="btn-secondary btn-tailor">
-                        <i class="fas fa-wand-magic-sparkles"></i> Tailor with AI
-                    </button>
-                    <ul id="versions-list"></ul>
-                </div>
-            </section>
-
-            <section id="version-settings-manager" class="sidebar-card hidden">
-                <form id="version-settings-form">
-                    <div class="settings-header">
-                        <h3>Settings for <span id="current-version-name"></span></h3>
-                        <button type="submit" class="btn-primary btn-sm">Save</button>
-                    </div>
-
-                    <div class="visibility-section">
-                        <label class="section-label">Section Visibility</label>
-                        <div class="visibility-grid">
-                            <label><input type="checkbox" data-field="show_summary"> Summary</label>
-                            <label><input type="checkbox" data-field="show_experience"> Experience</label>
-                            <label><input type="checkbox" data-field="show_education"> Education</label>
-                            <label><input type="checkbox" data-field="show_projects"> Projects</label>
-                            <label><input type="checkbox" data-field="show_skills"> Skills</label>
-                        </div>
-                    </div>
-
-                    <div class="settings-grid bilingual-titles">
-                        <div class="lang-col">
-                            <h4 class="lang-label"><span class="lang-tag lang-en">EN</span> English</h4>
-                            <span class="field-label">Role Subtitle</span>
-                            <input type="text" id="contact-subtitle" name="subtitle" placeholder="e.g. Project Manager">
-                            <span class="field-label">Section Titles</span>
-                            <input type="text" data-field="title_summary" placeholder="Summary">
-                            <input type="text" data-field="title_experience" placeholder="Experience">
-                            <input type="text" data-field="title_education" placeholder="Education">
-                            <input type="text" data-field="title_projects" placeholder="Projects">
-                            <input type="text" data-field="title_skills" placeholder="Skills">
-                        </div>
-                        <div class="lang-col">
-                            <h4 class="lang-label"><span class="lang-tag lang-es">ES</span> Español</h4>
-                            <span class="field-label">Subtítulo</span>
-                            <input type="text" id="contact-subtitle_es" name="subtitle_es" placeholder="ej. Gerente de Proyectos">
-                            <span class="field-label">Títulos de sección</span>
-                            <input type="text" data-field="title_summary_es" placeholder="Resumen">
-                            <input type="text" data-field="title_experience_es" placeholder="Experiencia">
-                            <input type="text" data-field="title_education_es" placeholder="Educación">
-                            <input type="text" data-field="title_projects_es" placeholder="Proyectos">
-                            <input type="text" data-field="title_skills_es" placeholder="Habilidades">
-                        </div>
+                    <div class="profile-fields">
+                        <label class="field">
+                            <span class="field-label">Name</span>
+                            <input type="text" id="contact-name" name="name" placeholder="Your name">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Email</span>
+                            <input type="email" id="contact-email" name="email" placeholder="name@example.com">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Phone</span>
+                            <input type="tel" id="contact-phone" name="phone" placeholder="+34 600 000 000">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">LinkedIn</span>
+                            <input type="url" id="contact-linkedin" name="linkedin" placeholder="https://linkedin.com/in/…">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">GitHub</span>
+                            <input type="url" id="contact-github" name="github" placeholder="https://github.com/…">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Website</span>
+                            <input type="url" id="contact-website" name="website" placeholder="https://…">
+                        </label>
                     </div>
                 </form>
-            </section>
+            </div>
+        </section>
+
+        <div class="adm-layout">
+            <!-- Left column: versions (sticky) -->
+            <aside class="adm-sidebar" aria-label="Resume versions">
+                <section id="versions-manager" class="panel versions-panel">
+                    <div class="panel-head">
+                        <h2 class="panel-title">Versions <span id="versions-count" class="count-pill">–</span></h2>
+                        <button id="versions-collapse-btn" class="btn-icon btn-icon-sm" type="button" aria-expanded="true" aria-controls="versions-body" aria-label="Collapse versions list"><i class="fas fa-chevron-down panel-chevron" aria-hidden="true"></i></button>
+                    </div>
+                    <div id="versions-body" class="panel-body">
+                        <form class="add-version-form" id="add-version-form" autocomplete="off">
+                            <input type="text" id="new-version-name" placeholder="New version name" aria-label="New version name" maxlength="80">
+                            <button id="add-version-btn" class="btn btn-secondary" type="submit"><i class="fas fa-plus" aria-hidden="true"></i><span>Add</span></button>
+                        </form>
+                        <button id="tailor-open-btn" class="btn btn-tailor" type="button">
+                            <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Tailor with AI
+                        </button>
+                        <div class="search-field">
+                            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                            <input type="search" id="versions-search" placeholder="Filter versions" aria-label="Filter versions">
+                        </div>
+                        <ul id="versions-list" class="versions-list" aria-busy="true">
+                            <li class="version-skel" aria-hidden="true"><span class="skel skel-line w-60"></span><span class="skel skel-line skel-sm w-35"></span></li>
+                            <li class="version-skel" aria-hidden="true"><span class="skel skel-line w-70"></span><span class="skel skel-line skel-sm w-45"></span></li>
+                            <li class="version-skel" aria-hidden="true"><span class="skel skel-line w-50"></span><span class="skel skel-line skel-sm w-30"></span></li>
+                        </ul>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Right column: version settings + content library -->
+            <div class="adm-main-col">
+                <section id="version-settings-manager" class="panel settings-panel hidden" aria-labelledby="settings-title">
+                    <form id="version-settings-form">
+                        <div class="panel-head">
+                            <button id="settings-collapse-btn" class="panel-toggle" type="button" aria-expanded="true" aria-controls="settings-body">
+                                <span class="panel-toggle-text">
+                                    <span class="panel-title" id="settings-title">Version settings</span>
+                                    <span class="panel-sub">Subtitle and sections shown on <span id="current-version-name" class="settings-version-name"></span></span>
+                                </span>
+                                <i class="fas fa-chevron-down panel-chevron" aria-hidden="true"></i>
+                            </button>
+                            <div class="settings-tools">
+                                <div class="seg" role="group" aria-label="Language of the text fields">
+                                    <button type="button" class="seg-btn is-on" data-lang="en" aria-pressed="true" aria-label="Edit English text">EN</button>
+                                    <button type="button" class="seg-btn" data-lang="es" aria-pressed="false" aria-label="Edit Spanish text">ES</button>
+                                </div>
+                                <button type="submit" id="settings-save-btn" class="btn btn-primary btn-sm">Save settings</button>
+                            </div>
+                        </div>
+                        <div class="panel-body settings-body" id="settings-body">
+                            <ul class="section-rows">
+                                <li class="section-row is-subtitle">
+                                    <span class="section-row-icon" aria-hidden="true"><i class="fas fa-id-badge"></i></span>
+                                    <label class="section-row-name" for="contact-subtitle">Subtitle</label>
+                                    <input type="text" class="lang-input" data-lang-input="en" id="contact-subtitle" name="subtitle" placeholder="e.g. Project Manager" aria-label="Role subtitle (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" id="contact-subtitle_es" name="subtitle_es" placeholder="ej. Gerente de Proyectos" aria-label="Role subtitle (Spanish)">
+                                </li>
+                                <li class="section-row">
+                                    <label class="switch"><input type="checkbox" role="switch" data-field="show_summary" aria-label="Show the Summary section"><span class="switch-track" aria-hidden="true"></span></label>
+                                    <span class="section-row-name">Summary</span>
+                                    <input type="text" class="lang-input" data-lang-input="en" data-field="title_summary" placeholder="Summary" aria-label="Summary heading (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" data-field="title_summary_es" placeholder="Resumen" aria-label="Summary heading (Spanish)">
+                                </li>
+                                <li class="section-row">
+                                    <label class="switch"><input type="checkbox" role="switch" data-field="show_experience" aria-label="Show the Experience section"><span class="switch-track" aria-hidden="true"></span></label>
+                                    <span class="section-row-name">Experience</span>
+                                    <input type="text" class="lang-input" data-lang-input="en" data-field="title_experience" placeholder="Experience" aria-label="Experience heading (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" data-field="title_experience_es" placeholder="Experiencia" aria-label="Experience heading (Spanish)">
+                                </li>
+                                <li class="section-row">
+                                    <label class="switch"><input type="checkbox" role="switch" data-field="show_education" aria-label="Show the Education section"><span class="switch-track" aria-hidden="true"></span></label>
+                                    <span class="section-row-name">Education</span>
+                                    <input type="text" class="lang-input" data-lang-input="en" data-field="title_education" placeholder="Education" aria-label="Education heading (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" data-field="title_education_es" placeholder="Educación" aria-label="Education heading (Spanish)">
+                                </li>
+                                <li class="section-row">
+                                    <label class="switch"><input type="checkbox" role="switch" data-field="show_projects" aria-label="Show the Projects section"><span class="switch-track" aria-hidden="true"></span></label>
+                                    <span class="section-row-name">Projects</span>
+                                    <input type="text" class="lang-input" data-lang-input="en" data-field="title_projects" placeholder="Projects" aria-label="Projects heading (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" data-field="title_projects_es" placeholder="Proyectos" aria-label="Projects heading (Spanish)">
+                                </li>
+                                <li class="section-row">
+                                    <label class="switch"><input type="checkbox" role="switch" data-field="show_skills" aria-label="Show the Skills section"><span class="switch-track" aria-hidden="true"></span></label>
+                                    <span class="section-row-name">Skills</span>
+                                    <input type="text" class="lang-input" data-lang-input="en" data-field="title_skills" placeholder="Skills" aria-label="Skills heading (English)">
+                                    <input type="text" class="lang-input hidden" data-lang-input="es" data-field="title_skills_es" placeholder="Habilidades" aria-label="Skills heading (Spanish)">
+                                </li>
+                            </ul>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel main-panel admin-main-content" aria-labelledby="library-title">
+                    <div class="main-head">
+                        <div class="main-head-text">
+                            <h2 class="panel-title panel-title-lg" id="library-title">Content library</h2>
+                            <p class="context-line" id="context-line">Loading versions…</p>
+                        </div>
+                        <button id="add-item-btn" class="btn btn-primary" type="button"><i class="fas fa-plus" aria-hidden="true"></i><span id="add-item-label">Add</span></button>
+                    </div>
+
+                    <div class="tabs-wrap">
+                        <div id="tabs" class="tabs" role="tablist" aria-label="Content type">
+                            <button class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="content-pool-container" data-tab="experience">Experience <span class="tab-count" data-count="experience">–</span></button>
+                            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="content-pool-container" tabindex="-1" data-tab="education">Education <span class="tab-count" data-count="education">–</span></button>
+                            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="content-pool-container" tabindex="-1" data-tab="project">Projects <span class="tab-count" data-count="project">–</span></button>
+                            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="content-pool-container" tabindex="-1" data-tab="skill">Skills <span class="tab-count" data-count="skill">–</span></button>
+                            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="content-pool-container" tabindex="-1" data-tab="summary">Summary <span class="tab-count" data-count="summary">–</span></button>
+                            <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="content-pool-container" tabindex="-1" data-tab="server">Server info</button>
+                            <span class="tab-indicator" aria-hidden="true"></span>
+                        </div>
+                    </div>
+
+                    <div id="content-pool-container" class="pool-container" role="tabpanel" aria-busy="true">
+                        <div class="tbl-skel" aria-hidden="true">
+                            <div class="tbl-skel-row"><span class="skel skel-switch"></span><span class="skel skel-line w-40"></span><span class="skel skel-line w-25"></span><span class="skel skel-line w-10"></span></div>
+                            <div class="tbl-skel-row"><span class="skel skel-switch"></span><span class="skel skel-line w-50"></span><span class="skel skel-line w-20"></span><span class="skel skel-line w-10"></span></div>
+                            <div class="tbl-skel-row"><span class="skel skel-switch"></span><span class="skel skel-line w-35"></span><span class="skel skel-line w-30"></span><span class="skel skel-line w-10"></span></div>
+                            <div class="tbl-skel-row"><span class="skel skel-switch"></span><span class="skel skel-line w-45"></span><span class="skel skel-line w-20"></span><span class="skel skel-line w-10"></span></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Slide-in editor (pool items + server sections/items) -->
+    <div id="item-modal" class="drawer-root hidden">
+        <div class="drawer-backdrop" data-drawer-dismiss></div>
+        <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
+            <header class="drawer-header">
+                <div class="drawer-heading">
+                    <p class="drawer-eyebrow" id="modal-eyebrow"></p>
+                    <h2 id="modal-title" class="drawer-title"></h2>
+                </div>
+                <button id="drawer-close-btn" class="btn-icon" type="button" aria-label="Close editor"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </header>
+            <form id="modal-form" class="drawer-body" autocomplete="off" novalidate></form>
+            <footer class="drawer-footer">
+                <span class="kbd-hint"><kbd id="kbd-mod">Ctrl</kbd><kbd>S</kbd> to save · <kbd>Esc</kbd> to close</span>
+                <button id="modal-cancel-btn" class="btn btn-secondary" type="button">Cancel</button>
+                <button id="modal-save-btn" class="btn btn-primary" type="button">Save</button>
+            </footer>
         </aside>
-
-        <!-- Right Column: Content Pools -->
-        <main class="admin-main-content">
-            <div id="tabs" class="tabs">
-                <button class="tab-btn active" data-tab="experience">Experience</button>
-                <button class="tab-btn" data-tab="education">Education</button>
-                <button class="tab-btn" data-tab="project">Projects</button>
-                <button class="tab-btn" data-tab="skill">Skills</button>
-                <button class="tab-btn" data-tab="summary">Summary</button>
-                <button class="tab-btn" data-tab="server">Server Info</button>
-            </div>
-
-            <div id="content-pool-container">
-                <!-- Content for each tab will be dynamically inserted here -->
-            </div>
-        </main>
     </div>
 
-    <!-- Modal for Adding/Editing Content Pool Items -->
-    <div id="item-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 id="modal-title"></h2>
-            <form id="modal-form"></form>
-            <div class="modal-actions">
-                <button id="modal-save-btn" class="btn-primary">Save</button>
-                <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>
-            </div>
-        </div>
-    </div>
+    <!-- AI Tailor Wizard -->
+    <div id="tailor-modal" class="modal-root hidden">
+        <div class="modal-backdrop" data-tailor-dismiss></div>
+        <div class="modal tailor-modal" role="dialog" aria-modal="true" aria-labelledby="tailor-title" tabindex="-1">
+            <header class="modal-header">
+                <div class="modal-heading">
+                    <p class="modal-eyebrow"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> AI tailor</p>
+                    <h2 id="tailor-title" class="modal-title">Tailor a version to a job</h2>
+                </div>
+                <ol class="stepper" id="tailor-stepper" aria-label="Progress">
+                    <li class="step is-current" data-step="input" aria-current="step"><span class="step-dot"><span class="step-num">1</span><i class="fas fa-check" aria-hidden="true"></i></span><span class="step-label">Job posting</span></li>
+                    <li class="step-line" aria-hidden="true"><span></span></li>
+                    <li class="step" data-step="preview"><span class="step-dot"><span class="step-num">2</span><i class="fas fa-check" aria-hidden="true"></i></span><span class="step-label">Review</span></li>
+                </ol>
+                <button class="btn-icon tailor-close-btn" type="button" aria-label="Close AI tailor"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </header>
 
-    <!-- AI Tailor Wizard Modal -->
-    <div id="tailor-modal" class="modal-overlay hidden">
-        <div class="modal-content tailor-modal-content">
-
-            <!-- Step 1: input -->
-            <div id="tailor-step-input">
-                <h2><i class="fas fa-wand-magic-sparkles"></i> Create AI-tailored version</h2>
-                <p class="tailor-help">Paste a job description; AI will adapt your experience, summary, and skill selection for that role. You'll review every change before it's saved.</p>
-                <div class="tailor-input-grid">
-                    <div class="form-group">
-                        <label>Base version</label>
-                        <select id="tailor-base-version"></select>
+            <div class="modal-body" id="tailor-body">
+                <!-- Step 1: input -->
+                <div id="tailor-step-input" class="tailor-step">
+                    <p class="tailor-help">Paste a job posting. The AI adapts your summary, experience bullets and skill selection to it — you review every change before anything is saved.</p>
+                    <div class="tailor-input-grid">
+                        <label class="field">
+                            <span class="field-label">Base version</span>
+                            <select id="tailor-base-version"></select>
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Language</span>
+                            <select id="tailor-language">
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Target company <span class="optional">optional</span></span>
+                            <input type="text" id="tailor-company" placeholder="e.g. Acme Corp">
+                        </label>
                     </div>
-                    <div class="form-group">
-                        <label>Language</label>
-                        <select id="tailor-language">
-                            <option value="en">English</option>
-                            <option value="es">Español</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Target company <span class="optional">(optional)</span></label>
-                    <input type="text" id="tailor-company" placeholder="e.g. Acme Corp">
-                </div>
-                <div class="form-group">
-                    <label>Job description</label>
-                    <textarea id="tailor-jd" rows="10" placeholder="Paste the job posting here..."></textarea>
-                </div>
-                <div class="form-group tailor-cover-toggle">
-                    <label class="inline-checkbox">
-                        <input type="checkbox" id="tailor-include-cover-letter">
-                        Also generate a cover letter
+                    <label class="field">
+                        <span class="field-label field-label-row">Job description <span class="char-count" id="tailor-jd-count">0 / 12,000</span></span>
+                        <textarea id="tailor-jd" rows="10" placeholder="Paste the job posting here…"></textarea>
                     </label>
-                    <small class="tailor-help">Adds ~250-350 words of cover letter content to the same generation. Optional — leave off to save tokens.</small>
+                    <label class="option-card tailor-cover-toggle">
+                        <span class="switch"><input type="checkbox" id="tailor-include-cover-letter" role="switch"><span class="switch-track" aria-hidden="true"></span></span>
+                        <span class="option-card-text">
+                            <span class="option-card-title">Also write a cover letter</span>
+                            <span class="option-card-sub">Adds ~250–350 words to the same generation. Leave off to save tokens.</span>
+                        </span>
+                    </label>
                 </div>
-                <div class="modal-actions">
-                    <button id="tailor-generate-btn" class="btn-primary">Generate</button>
-                    <button class="btn-secondary tailor-close-btn">Cancel</button>
+
+                <!-- Step 2: preview/edit -->
+                <div id="tailor-step-preview" class="tailor-step hidden">
+                    <div class="tailor-input-grid tailor-name-grid">
+                        <label class="field">
+                            <span class="field-label">Version name</span>
+                            <input type="text" id="tailor-new-name">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">URL slug</span>
+                            <span class="input-prefix"><span class="input-prefix-text">/?v=</span><input type="text" id="tailor-new-slug" spellcheck="false"></span>
+                        </label>
+                    </div>
+
+                    <section class="review-block">
+                        <h3 class="review-title">Summary</h3>
+                        <div id="tailor-summary-diff" class="diff-pair"></div>
+                    </section>
+
+                    <section class="review-block">
+                        <h3 class="review-title">Experience</h3>
+                        <div id="tailor-experience-list" class="exp-list"></div>
+                    </section>
+
+                    <section class="review-block">
+                        <div class="review-title-row">
+                            <h3 class="review-title">Skills on this version</h3>
+                            <span class="review-meta" id="tailor-skills-count"></span>
+                        </div>
+                        <p class="tailor-help">The AI's picks are pre-selected. Click to toggle.</p>
+                        <div id="tailor-skills-list" class="skill-chips"></div>
+                    </section>
+
+                    <section class="review-block">
+                        <h3 id="tailor-new-skills-heading" class="review-title hidden">Suggested new skills</h3>
+                        <p id="tailor-new-skills-help" class="tailor-help hidden">Found in your experience but not in your skills library yet. Accept the ones you really have — they're added to the shared skill pool.</p>
+                        <div id="tailor-new-skills-list" class="new-skills"></div>
+                    </section>
+
+                    <section id="tailor-cover-letter-section" class="review-block cover-letter-block hidden">
+                        <div class="review-title-row">
+                            <h3 class="review-title">Cover letter</h3>
+                            <button id="tailor-download-cover-letter-btn" class="btn btn-secondary btn-sm" type="button"><i class="fas fa-download" aria-hidden="true"></i> Download PDF</button>
+                        </div>
+                        <p class="tailor-help">Edit freely. Nothing is stored — each download renders a fresh PDF. The CV link in its header uses the slug above.</p>
+                        <textarea id="tailor-cover-letter-text" rows="14" data-autogrow></textarea>
+                    </section>
+
+                    <section class="review-block regen-block">
+                        <h3 class="review-title">Not quite right?</h3>
+                        <p class="tailor-help">Tell the AI what to change and regenerate. Your edits above will be replaced.</p>
+                        <div class="regen-row">
+                            <textarea id="tailor-notes" rows="2" placeholder="e.g. shorten to 2 bullets each, emphasise backend work, more casual tone" data-autogrow></textarea>
+                            <button id="tailor-regenerate-btn" class="btn btn-secondary" type="button"><i class="fas fa-rotate" aria-hidden="true"></i> Regenerate</button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Generating overlay -->
+                <div id="tailor-generating" class="tailor-generating hidden" role="status" aria-live="polite">
+                    <div class="generating-card">
+                        <span class="spinner spinner-lg" aria-hidden="true"></span>
+                        <p class="generating-title" id="tailor-generating-title">Tailoring your resume</p>
+                        <p class="generating-time"><span id="tailor-elapsed">0s</span> elapsed</p>
+                        <p class="generating-hint">Rewriting the summary and experience for this role. This usually takes 20–60 seconds.</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Step 2: preview/edit -->
-            <div id="tailor-step-preview" class="hidden">
-                <h2>Review tailored version</h2>
-                <p class="tailor-help">Edit any field before saving. Each experience entry shows the original on the left and the AI suggestion on the right.</p>
-
-                <div class="tailor-input-grid">
-                    <div class="form-group">
-                        <label>Version name</label>
-                        <input type="text" id="tailor-new-name">
-                    </div>
-                    <div class="form-group">
-                        <label>Slug (URL)</label>
-                        <input type="text" id="tailor-new-slug">
-                    </div>
+            <footer class="modal-footer">
+                <div class="footer-actions" data-step-actions="input">
+                    <button class="btn btn-ghost tailor-close-btn" type="button">Cancel</button>
+                    <button id="tailor-generate-btn" class="btn btn-primary" type="button"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Generate</button>
                 </div>
-
-                <h3>Summary</h3>
-                <div id="tailor-summary-diff" class="diff-pair"></div>
-
-                <h3>Experience</h3>
-                <div id="tailor-experience-list"></div>
-
-                <h3>Skills shown on this version</h3>
-                <p class="tailor-help">AI's selection is pre-checked. Toggle to override.</p>
-                <div id="tailor-skills-list"></div>
-
-                <h3 id="tailor-new-skills-heading" class="hidden">Suggested new skills</h3>
-                <p id="tailor-new-skills-help" class="tailor-help hidden">AI surfaced these from your experience but they're not in your skills library yet. Check the ones you actually have — they'll be added to your global skill pool.</p>
-                <div id="tailor-new-skills-list"></div>
-
-                <div id="tailor-cover-letter-section" class="hidden">
-                    <h3>Cover letter</h3>
-                    <p class="tailor-help">Edit the text below if you want. Nothing is saved server-side — clicking download renders a fresh PDF each time. The CV link in the header uses the slug above.</p>
-                    <textarea id="tailor-cover-letter-text" rows="14"></textarea>
-                    <div style="text-align: right; margin-top: 10px;">
-                        <button id="tailor-download-cover-letter-btn" class="btn-secondary"><i class="fas fa-download"></i> Download cover letter (PDF)</button>
-                    </div>
+                <div class="footer-actions hidden" data-step-actions="preview">
+                    <button id="tailor-back-btn" class="btn btn-ghost" type="button"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+                    <span class="footer-spacer"></span>
+                    <button id="tailor-commit-btn" class="btn btn-primary" type="button">Save as new version</button>
                 </div>
-
-                <h3>Not happy? Regenerate with notes</h3>
-                <textarea id="tailor-notes" rows="2" placeholder="e.g. shorten to 2 bullets each, emphasize backend work, more casual tone"></textarea>
-                <div class="modal-actions">
-                    <button id="tailor-back-btn" class="btn-secondary">Back</button>
-                    <button id="tailor-regenerate-btn" class="btn-secondary">Regenerate</button>
-                    <button id="tailor-commit-btn" class="btn-primary">Save as new version</button>
-                </div>
-            </div>
+            </footer>
         </div>
     </div>
+
+    <div class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
 
     <script src="admin-dashboard.js"></script>
 </body>

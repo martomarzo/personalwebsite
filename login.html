@@ -3,53 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - Martín Marzorati</title>
+    <title>Sign in · Admin · Martín Marzorati</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="photos/favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
-        const saved = localStorage.getItem('theme-mode');
-        if (saved === 'light') document.documentElement.classList.add('light-mode');
+        try {
+            if (localStorage.getItem('theme-mode') === 'light') document.documentElement.classList.add('light-mode');
+        } catch (e) { /* storage blocked: keep dark */ }
     </script>
 </head>
 <body class="login-page-body">
-    <div class="login-card">
-        <h1>Admin Panel</h1>
-        <p>Enter your password to continue</p>
-        <div id="error" class="error-message">Invalid password</div>
-        <form id="login-form">
-            <input type="password" id="password" placeholder="Password" required autofocus>
-            <button type="submit">Login</button>
-        </form>
-    </div>
+    <div class="login-bg" aria-hidden="true"><div class="login-grid-lines"></div></div>
+
+    <main class="login-wrap">
+        <div class="login-card" id="login-card">
+            <div class="login-top">
+                <span class="login-mark" aria-label="MM">MM<span>©</span></span>
+                <span class="login-chip"><i class="fas fa-lock" aria-hidden="true"></i> Private</span>
+            </div>
+            <h1 class="login-title">Admin</h1>
+            <p class="login-sub">Sign in to manage your resume versions and content.</p>
+
+            <form id="login-form" novalidate>
+                <label class="visually-hidden" for="password">Password</label>
+                <div class="pw-field" id="pw-field">
+                    <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" required autofocus aria-describedby="error">
+                    <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                </div>
+                <div id="error" class="login-error hidden" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i><span id="error-text">Invalid password</span></div>
+                <button type="submit" class="btn btn-primary login-submit" id="login-submit">Sign in</button>
+            </form>
+        </div>
+        <div class="login-foot">
+            <a href="/">← Back to site</a>
+            <button type="button" class="btn-icon login-theme" id="login-theme" aria-label="Toggle theme"><i class="fas fa-sun" aria-hidden="true"></i></button>
+        </div>
+    </main>
 
     <script>
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const password = document.getElementById('password').value;
+        (function () {
+            const form = document.getElementById('login-form');
+            const input = document.getElementById('password');
+            const field = document.getElementById('pw-field');
+            const toggle = document.getElementById('pw-toggle');
             const errorEl = document.getElementById('error');
+            const errorText = document.getElementById('error-text');
+            const submit = document.getElementById('login-submit');
+            const card = document.getElementById('login-card');
+            const themeBtn = document.getElementById('login-theme');
+            const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
+            // Theme (same storage key as the site + admin)
+            const syncTheme = () => {
+                const light = document.documentElement.classList.contains('light-mode');
+                themeBtn.innerHTML = light ? '<i class="fas fa-moon" aria-hidden="true"></i>' : '<i class="fas fa-sun" aria-hidden="true"></i>';
+                themeBtn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+            };
+            syncTheme();
+            themeBtn.addEventListener('click', () => {
+                const light = document.documentElement.classList.toggle('light-mode');
+                try { localStorage.setItem('theme-mode', light ? 'light' : 'dark'); } catch (e) { /* ignore */ }
+                syncTheme();
+            });
 
-                if (response.ok) {
-                    window.location.href = '/admin';
-                } else {
-                    const data = await response.json();
-                    errorEl.textContent = data.error || 'Login failed';
-                    errorEl.style.display = 'block';
+            // Show / hide password
+            toggle.addEventListener('click', () => {
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                toggle.setAttribute('aria-pressed', String(show));
+                toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                toggle.innerHTML = show ? '<i class="fas fa-eye-slash" aria-hidden="true"></i>' : '<i class="fas fa-eye" aria-hidden="true"></i>';
+                input.focus();
+            });
+
+            const showError = (message) => {
+                errorText.textContent = message;
+                errorEl.classList.remove('hidden');
+                field.classList.add('is-invalid');
+                input.setAttribute('aria-invalid', 'true');
+                if (!reduced()) {
+                    card.classList.remove('is-shaking');
+                    void card.offsetWidth;
+                    card.classList.add('is-shaking');
                 }
-            } catch (err) {
-                errorEl.textContent = 'An error occurred. Please try again.';
-                errorEl.style.display = 'block';
-            }
-        });
+                input.focus();
+                input.select();
+            };
+            const clearError = () => {
+                errorEl.classList.add('hidden');
+                field.classList.remove('is-invalid');
+                input.removeAttribute('aria-invalid');
+            };
+            input.addEventListener('input', clearError);
+
+            const setLoading = (loading) => {
+                submit.disabled = loading;
+                submit.setAttribute('aria-busy', String(loading));
+                submit.innerHTML = loading ? '<span class="spinner" aria-hidden="true"></span><span>Signing in…</span>' : 'Sign in';
+            };
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const password = input.value;
+                if (!password) { showError('Enter your password.'); return; }
+                clearError();
+                setLoading(true);
+
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password })
+                    });
+
+                    if (response.ok) {
+                        submit.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i><span>Welcome back</span>';
+                        window.location.href = '/admin';
+                        return;
+                    }
+                    let message = 'Login failed';
+                    try { message = (await response.json()).error || message; } catch (_) { /* not JSON */ }
+                    setLoading(false);
+                    showError(message);
+                } catch (err) {
+                    setLoading(false);
+                    showError('An error occurred. Please try again.');
+                }
+            });
+        })();
     </script>
 </body>
 </html>

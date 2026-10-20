@@ -1,5 +1,6 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+types.setTypeParser(1082, (value) => value); // DATE → 'YYYY-MM-DD' (no timezone shift)
 const path = require('path');
 const multer = require('multer');
 const cors = require('cors');
@@ -7,10 +8,11 @@ const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
-const puppeteer = require('puppeteer');
 const sharp = require('sharp');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const { getProvider } = require('./llm/provider');
+const { buildResumeHtml, buildCoverLetterHtml, resumeFilename } = require('./pdf/templates');
+const { renderPdf, serializeRender } = require('./pdf/render');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -59,8 +61,11 @@ app.use(cookieParser());
 // --- Authentication Middleware ---
 const authenticateAdmin = (req, res, next) => {
     const token = req.cookies.adminToken;
+    // originalUrl, not path: under app.use('/api/admin', ...) req.path is mount-relative,
+    // which made API calls get a 302 to /login instead of the 401 the admin UI expects.
+    const isApi = req.xhr || req.originalUrl.startsWith('/api');
     if (!token) {
-        if (req.xhr || req.path.startsWith('/api')) {
+        if (isApi) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         return res.redirect('/login');
@@ -72,7 +77,7 @@ const authenticateAdmin = (req, res, next) => {
         next();
     } catch (err) {
         res.clearCookie('adminToken');
-        if (req.xhr || req.path.startsWith('/api')) {
+        if (isApi) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
         return res.redirect('/login');
@@ -236,10 +241,10 @@ async function composeResume(client, version, language) {
         const result = await client.query(`
             SELECT p.id, p.percentage, sc.name as category, d.name
             FROM skill_pool p JOIN skill_details d ON p.id = d.pool_id
-            JOIN skill_categories sc ON p.category_id = sc.id
+            LEFT JOIN skill_categories sc ON p.category_id = sc.id
             JOIN version_skill_visibility v ON p.id = v.pool_id
             WHERE v.version_id = $1 AND v.is_visible = TRUE AND d.language = $2
-            ORDER BY sc.name, d.name;
+            ORDER BY sc.name NULLS LAST, d.name;
         `, [version.id, language]);
         resume.skills = result.rows;
     }
@@ -283,94 +288,163 @@ app.get('/api/resume/slug/:slug/:language', async (req, res) => {
 });
 
 // --- PDF EXPORT ---
-// Bump when the print layout changes so all cached PDFs are invalidated.
-const PDF_RENDER_VERSION = 'v1';
+// Resume PDFs are rendered from a dedicated A4 template (backend/pdf) fed by the
+// same composeResume() payload as the public page, cached in pdf_cache by a hash
+// of that payload, and rendered one Chromium at a time (serializeRender).
+// Bump when the PDF layout changes so all cached PDFs are invalidated.
+const PDF_RENDER_VERSION = 'v2';
+const PDF_LANGUAGES = new Set(['en', 'es']);
 
-// Serialize renders: only one Chromium runs at a time to stay within the
-// 512MB instance budget. Requests queue rather than launch concurrent browsers.
-let renderChain = Promise.resolve();
-function serializeRender(task) {
-    const result = renderChain.then(task, task);
-    renderChain = result.then(() => {}, () => {});
-    return result;
+// Absolute base for links inside PDFs (project links, CV URL). Behind Render's
+// proxy req.protocol is "http", so honour X-Forwarded-Proto in the fallback.
+function publicBaseUrl(req) {
+    const proto = String(req.get('x-forwarded-proto') || req.protocol).split(',')[0].trim();
+    return (process.env.PUBLIC_URL || `${proto}://${req.get('host')}`).replace(/\/+$/, '');
 }
 
-// Launch a lean headless Chromium, render the print view of a resume page, and
-// return the PDF buffer. Browser is launched on-demand and closed immediately
-// so it holds no idle memory between exports.
-async function renderResumePdf(url) {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--single-process',
-            '--no-zygote',
-            '--disable-gpu',
-        ],
-    });
-    try {
-        const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-        // Ensure the async-rendered content has actually populated the page.
-        await page.waitForFunction(() => {
-            const h1 = document.querySelector('header h1');
-            return h1 && h1.textContent.trim().length > 0;
-        }, { timeout: 15000 }).catch(() => {});
-        return await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: { top: '14mm', bottom: '14mm', left: '12mm', right: '12mm' },
-        });
-    } finally {
-        await browser.close();
+// Bundled photo used when no profile picture is stored in the DB. The original
+// is several MB, so it is downscaled once and memoized as a data URI.
+let fallbackPhotoPromise = null;
+function fallbackPhotoDataUri() {
+    if (!fallbackPhotoPromise) {
+        fallbackPhotoPromise = sharp(path.resolve(__dirname, '..', 'photos', 'Martin.jpg'))
+            .rotate()
+            .resize({ width: 300, withoutEnlargement: true })
+            .jpeg({ quality: 82 })
+            .toBuffer()
+            .then((buf) => `data:image/jpeg;base64,${buf.toString('base64')}`)
+            .catch((err) => {
+                console.error('Fallback photo unavailable:', err.message);
+                fallbackPhotoPromise = null;
+                return null;
+            });
     }
+    return fallbackPhotoPromise;
 }
 
-// Download a version as PDF. Authenticated (triggered from the admin panel).
-// Serves a cached PDF when the composed content is unchanged; otherwise renders
-// fresh via Puppeteer and updates the cache.
-app.get('/api/download/pdf/:id/:language', authenticateAdmin, async (req, res) => {
-    const { id, language } = req.params;
-    let client;
-    try {
-        client = await pool.connect();
-        const version = await fetchVersionRow(client, 'id', id, language);
-        if (!version) return res.status(404).json({ error: 'Version not found' });
+async function resumePhotoDataUri(db) {
+    const result = await db.query(
+        'SELECT profile_picture_data, profile_picture_mime FROM contact_info WHERE profile_picture_data IS NOT NULL LIMIT 1'
+    );
+    const row = result.rows[0];
+    if (row && row.profile_picture_data) {
+        return `data:${row.profile_picture_mime || 'image/jpeg'};base64,${Buffer.from(row.profile_picture_data).toString('base64')}`;
+    }
+    return fallbackPhotoDataUri();
+}
 
-        const resume = await composeResume(client, version, language);
-        const hash = crypto.createHash('sha256')
-            .update(`${PDF_RENDER_VERSION}:${language}:${JSON.stringify(resume)}`)
-            .digest('hex');
+// Identical concurrent cache misses share one render instead of queueing duplicates.
+const inflightResumeRenders = new Map();
 
-        const cached = await client.query(
-            'SELECT content_hash, pdf FROM pdf_cache WHERE version_id = $1 AND language = $2',
-            [id, language]
-        );
+// Returns { pdf, filename } for a version/language, from pdf_cache when the
+// composed content is unchanged, otherwise rendering and caching a fresh PDF.
+// `db` is anything with .query (pass the pool so no connection is held while
+// Chromium renders). `allowRender()` is consulted only before a real render;
+// when it returns false the result is { pdf: null, filename, limited: true }.
+async function getOrRenderResumePdf(db, version, language, publicUrl, { allowRender } = {}) {
+    const resume = await composeResume(db, version, language);
+    const filename = resumeFilename(version.contact_name, language);
+    const hash = crypto.createHash('sha256')
+        .update(`${PDF_RENDER_VERSION}:${language}:${publicUrl}:${JSON.stringify(resume)}`)
+        .digest('hex');
 
-        let pdf;
-        if (cached.rows.length && cached.rows[0].content_hash === hash) {
-            pdf = cached.rows[0].pdf; // cache hit — no Chromium launch
-        } else {
-            const url = `http://127.0.0.1:${port}/?v=${encodeURIComponent(version.slug)}&lang=${encodeURIComponent(language)}&print=1`;
-            pdf = await serializeRender(() => renderResumePdf(url));
-            await client.query(`
+    const cached = await db.query(
+        'SELECT content_hash, pdf FROM pdf_cache WHERE version_id = $1 AND language = $2',
+        [version.id, language]
+    );
+    if (cached.rows.length && cached.rows[0].content_hash === hash) {
+        return { pdf: Buffer.from(cached.rows[0].pdf), filename }; // cache hit — no Chromium launch
+    }
+
+    const key = `${version.id}:${language}:${hash}`;
+    let job = inflightResumeRenders.get(key);
+    if (!job) {
+        if (allowRender && !allowRender()) return { pdf: null, filename, limited: true };
+        job = (async () => {
+            const photoDataUri = await resumePhotoDataUri(db);
+            const html = buildResumeHtml(resume, { language, publicUrl, photoDataUri });
+            const name = (version.contact_name || '').trim();
+            const pdf = await serializeRender(() => renderPdf(html, { footerLabel: name ? `${name} · CV` : 'CV' }));
+            await db.query(`
                 INSERT INTO pdf_cache (version_id, language, content_hash, pdf, generated_at)
                 VALUES ($1, $2, $3, $4, now())
                 ON CONFLICT (version_id, language)
                 DO UPDATE SET content_hash = $3, pdf = $4, generated_at = now()
-            `, [id, language, hash, pdf]);
-        }
+            `, [version.id, language, hash, pdf]);
+            return pdf;
+        })().finally(() => inflightResumeRenders.delete(key));
+        inflightResumeRenders.set(key, job);
+    }
+    return { pdf: await job, filename };
+}
 
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${version.slug}-${language}.pdf"`);
-        res.send(Buffer.from(pdf));
+function sendPdf(res, pdf, filename) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdf);
+}
+
+// Public endpoint renders are rate-limited per client (cache hits are free).
+const PUBLIC_RENDER_LIMIT = 6;
+const PUBLIC_RENDER_WINDOW_MS = 10 * 60 * 1000;
+const publicRenderHits = new Map(); // client ip -> recent render timestamps
+
+// The nearest proxy appends the address it saw to X-Forwarded-For, so the last
+// entry can't be spoofed by the client (the first one can).
+function clientIp(req) {
+    const xff = req.get('x-forwarded-for');
+    if (xff) return xff.split(',').pop().trim();
+    return req.socket.remoteAddress || 'unknown';
+}
+
+function allowPublicRender(ip) {
+    const now = Date.now();
+    if (publicRenderHits.size > 1000) {
+        for (const [k, hits] of publicRenderHits) {
+            if (!hits.some((t) => now - t < PUBLIC_RENDER_WINDOW_MS)) publicRenderHits.delete(k);
+        }
+    }
+    const recent = (publicRenderHits.get(ip) || []).filter((t) => now - t < PUBLIC_RENDER_WINDOW_MS);
+    const allowed = recent.length < PUBLIC_RENDER_LIMIT;
+    if (allowed) recent.push(now);
+    publicRenderHits.set(ip, recent);
+    return allowed;
+}
+
+// Public "Download CV" (linked from the website). Not behind admin auth.
+app.get('/api/resume/pdf/:slug/:language', async (req, res) => {
+    const { slug, language } = req.params;
+    if (!PDF_LANGUAGES.has(language)) return res.status(400).json({ error: 'Language must be "en" or "es".' });
+    try {
+        const version = await fetchVersionRow(pool, 'slug', slug, language);
+        if (!version) return res.status(404).json({ error: 'Resume not found' });
+
+        const ip = clientIp(req);
+        const { pdf, filename, limited } = await getOrRenderResumePdf(pool, version, language, publicBaseUrl(req), {
+            allowRender: () => allowPublicRender(ip),
+        });
+        if (limited) return res.status(429).json({ error: 'Too many PDF requests. Please try again in a few minutes.' });
+
+        res.setHeader('Cache-Control', 'no-cache');
+        sendPdf(res, pdf, filename);
+    } catch (err) {
+        console.error('Public PDF error:', err.message);
+        res.status(500).json({ error: 'PDF generation failed' });
+    }
+});
+
+// Download a version as PDF. Authenticated (triggered from the admin panel).
+app.get('/api/download/pdf/:id/:language', authenticateAdmin, async (req, res) => {
+    const { id, language } = req.params;
+    if (!PDF_LANGUAGES.has(language)) return res.status(400).json({ error: 'Language must be "en" or "es".' });
+    try {
+        const version = await fetchVersionRow(pool, 'id', id, language);
+        if (!version) return res.status(404).json({ error: 'Version not found' });
+        const { pdf, filename } = await getOrRenderResumePdf(pool, version, language, publicBaseUrl(req));
+        sendPdf(res, pdf, filename);
     } catch (err) {
         console.error('PDF generation error:', err.message);
         res.status(500).json({ error: 'PDF generation failed' });
-    } finally {
-        if (client) client.release();
     }
 });
 
@@ -538,6 +612,115 @@ app.delete('/api/admin/versions/:id', async (req, res) => {
     }
 });
 
+// Duplicate a version with everything that belongs to it: settings/titles,
+// contact info (incl. subtitles and photo bytes), per-section visibility and
+// AI text overrides. Name/slug get "(copy)"/"-copy" (then 2, 3, …) until unique.
+app.post('/api/admin/versions/duplicate/:id', async (req, res) => {
+    const sourceId = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(sourceId)) return res.status(400).json({ error: 'Invalid version id.' });
+
+    let client;
+    try {
+        client = await pool.connect();
+    } catch (err) {
+        console.error('Error duplicating version:', err.message);
+        return res.status(500).json({ error: 'Database unavailable.' });
+    }
+    try {
+        await client.query('BEGIN');
+
+        const srcRes = await client.query('SELECT name, slug FROM resume_versions WHERE id = $1', [sourceId]);
+        if (!srcRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Version not found.' });
+        }
+        const src = srcRes.rows[0];
+
+        const existing = await client.query('SELECT name, slug FROM resume_versions');
+        const names = new Set(existing.rows.map((r) => r.name));
+        const slugs = new Set(existing.rows.map((r) => r.slug));
+        let name;
+        let slug;
+        for (let n = 1; ; n++) {
+            name = n === 1 ? `${src.name} (copy)` : `${src.name} (copy ${n})`;
+            slug = n === 1 ? `${src.slug}-copy` : `${src.slug}-copy-${n}`;
+            if (!names.has(name) && !slugs.has(slug)) break;
+        }
+
+        const newVerRes = await client.query(`
+            INSERT INTO resume_versions (
+                name, slug,
+                title_experience, title_experience_es, show_experience,
+                title_education,  title_education_es,  show_education,
+                title_projects,   title_projects_es,   show_projects,
+                title_skills,     title_skills_es,     show_skills,
+                title_summary,    title_summary_es,    show_summary
+            )
+            SELECT $1, $2,
+                title_experience, title_experience_es, show_experience,
+                title_education,  title_education_es,  show_education,
+                title_projects,   title_projects_es,   show_projects,
+                title_skills,     title_skills_es,     show_skills,
+                title_summary,    title_summary_es,    show_summary
+            FROM resume_versions WHERE id = $3
+            RETURNING *
+        `, [name, slug, sourceId]);
+        const newVersion = newVerRes.rows[0];
+
+        const ciRes = await client.query(`
+            INSERT INTO contact_info (
+                version_id, name, email, phone, linkedin, github, website,
+                profile_picture, profile_picture_data, profile_picture_mime,
+                subtitle, subtitle_es
+            )
+            SELECT $1, name, email, phone, linkedin, github, website,
+                profile_picture, profile_picture_data, profile_picture_mime,
+                subtitle, subtitle_es
+            FROM contact_info WHERE version_id = $2
+        `, [newVersion.id, sourceId]);
+        if (ciRes.rowCount === 0) {
+            // Source had no contact row: seed the global (shared) fields like a new version does.
+            const seeded = await client.query(`
+                INSERT INTO contact_info (version_id, name, email, phone, linkedin, github, website,
+                    profile_picture, profile_picture_data, profile_picture_mime)
+                SELECT $1, name, email, phone, linkedin, github, website,
+                    profile_picture, profile_picture_data, profile_picture_mime
+                FROM contact_info LIMIT 1
+            `, [newVersion.id]);
+            if (seeded.rowCount === 0) {
+                await client.query('INSERT INTO contact_info (version_id) VALUES ($1)', [newVersion.id]);
+            }
+        }
+
+        for (const tbl of ['experience', 'education', 'project', 'skill', 'summary']) {
+            await client.query(`
+                INSERT INTO version_${tbl}_visibility (version_id, pool_id, is_visible)
+                SELECT $1, pool_id, is_visible FROM version_${tbl}_visibility WHERE version_id = $2
+            `, [newVersion.id, sourceId]);
+        }
+
+        await client.query(`
+            INSERT INTO version_experience_override (version_id, pool_id, language, description, source, generated_at)
+            SELECT $1, pool_id, language, description, source, generated_at
+            FROM version_experience_override WHERE version_id = $2
+        `, [newVersion.id, sourceId]);
+        await client.query(`
+            INSERT INTO version_summary_override (version_id, language, content, source, generated_at)
+            SELECT $1, language, content, source, generated_at
+            FROM version_summary_override WHERE version_id = $2
+        `, [newVersion.id, sourceId]);
+
+        await client.query('COMMIT');
+        res.status(201).json(newVersion);
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error duplicating version:', err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
 // Serves the profile picture stored in the DB. Public: the portfolio page, the
 // admin preview, and the Puppeteer PDF render all load this URL as an <img> src.
 // The photo is global (shared across all versions), so any row with bytes works.
@@ -611,34 +794,38 @@ app.get('/api/admin/contact_info/:version_id', async (req, res) => {
 
 app.put('/api/admin/contact_info/:version_id', upload.single('profile_pic'), async (req, res) => {
     const { version_id } = req.params;
-    const { name, email, phone, linkedin, github, website, subtitle, subtitle_es } = req.body;
-    let profile_picture = req.body.profile_picture;
+    const body = req.body || {};
 
     try {
-        // 1. Update Global Fields for ALL versions (Name, Email, Phone, Socials, Photo).
-        //    When a new photo is uploaded, also store its downscaled bytes in the DB
-        //    and point profile_picture at the serving endpoint (timestamp busts cache).
+        // 1. Shared fields for ALL versions — only the ones present in the request.
+        //    A new photo also stores its downscaled bytes and points profile_picture at
+        //    the serving endpoint (timestamp busts the cache).
+        const globalSets = {};
+        ['name', 'email', 'phone', 'linkedin', 'github', 'website', 'profile_picture'].forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(body, key)) globalSets[key] = body[key];
+        });
         if (req.file) {
             const { data, mime } = await downscaleProfilePicture(req.file.buffer);
-            profile_picture = '/api/profile_picture?v=' + Date.now();
-            await pool.query(`
-                UPDATE contact_info
-                SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7, profile_picture_data=$8, profile_picture_mime=$9
-            `, [name, email, phone, linkedin, github, website, profile_picture, data, mime]);
-        } else {
-            await pool.query(`
-                UPDATE contact_info
-                SET name=$1, email=$2, phone=$3, linkedin=$4, github=$5, website=$6, profile_picture=$7
-            `, [name, email, phone, linkedin, github, website, profile_picture]);
+            globalSets.profile_picture = '/api/profile_picture?v=' + Date.now();
+            globalSets.profile_picture_data = data;
+            globalSets.profile_picture_mime = mime;
+        }
+        const globalKeys = Object.keys(globalSets);
+        if (globalKeys.length) {
+            await pool.query(
+                `UPDATE contact_info SET ${globalKeys.map((k, i) => `${k}=$${i + 1}`).join(', ')}`,
+                globalKeys.map((k) => globalSets[k])
+            );
         }
 
-        // 2. Update Version-Specific Fields (Subtitles) for the current version
-        const result = await pool.query(`
-            UPDATE contact_info
-            SET subtitle=$1, subtitle_es=$2
-            WHERE version_id=$3 RETURNING *`,
-            [subtitle, subtitle_es, version_id]
-        );
+        // 2. Version-specific subtitles for this version (only those sent).
+        const subKeys = ['subtitle', 'subtitle_es'].filter((k) => Object.prototype.hasOwnProperty.call(body, k));
+        const result = subKeys.length
+            ? await pool.query(
+                `UPDATE contact_info SET ${subKeys.map((k, i) => `${k}=$${i + 1}`).join(', ')} WHERE version_id=$${subKeys.length + 1} RETURNING *`,
+                [...subKeys.map((k) => body[k]), version_id]
+            )
+            : await pool.query('SELECT * FROM contact_info WHERE version_id=$1', [version_id]);
         const row = result.rows[0] || {};
         delete row.profile_picture_data; // never ship raw image bytes in JSON
         res.json(row);
@@ -699,7 +886,9 @@ const createCrudRoutes = (section) => {
             await client.query('BEGIN');
             const poolCols = Object.keys(poolData).join(', ');
             const poolVals = Object.values(poolData).map(v => v === '' ? null : v);
-            const poolRes = await client.query(`INSERT INTO ${tbl}_pool (${poolCols}) VALUES (${poolVals.map((_, i) => '$'+(i+1)).join(',')}) RETURNING id`, poolVals);
+            const poolRes = poolVals.length
+                ? await client.query(`INSERT INTO ${tbl}_pool (${poolCols}) VALUES (${poolVals.map((_, i) => '$'+(i+1)).join(',')}) RETURNING id`, poolVals)
+                : await client.query(`INSERT INTO ${tbl}_pool DEFAULT VALUES RETURNING id`);
             const poolId = poolRes.rows[0].id;
 
             for (const detail of details) {
@@ -1008,78 +1197,9 @@ app.post('/api/admin/tailor/commit', async (req, res) => {
 });
 
 // --- COVER LETTER PDF ---
-// Generates a one-page cover letter PDF on the fly from user-supplied (possibly AI-generated, possibly edited) text.
+// Generates a one-page cover letter PDF on the fly from user-supplied (possibly AI-generated, possibly edited) text,
+// using the same header and type as the resume PDF (backend/pdf/templates.js).
 // Nothing is persisted server-side — the PDF is streamed back as a download.
-function escapeHtmlAttr(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
-        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-    ));
-}
-
-function buildCoverLetterHtml({ text, candidateName, email, linkedin, cvUrl, companyName, language }) {
-    const locale = language === 'es' ? 'es-ES' : 'en-US';
-    const today = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
-    const greeting = companyName
-        ? (language === 'es' ? `Equipo de Contratación en ${escapeHtmlAttr(companyName)},` : `Hiring Team at ${escapeHtmlAttr(companyName)},`)
-        : (language === 'es' ? 'A quien corresponda,' : 'To whom it may concern,');
-    const closing = language === 'es' ? 'Atentamente,' : 'Sincerely,';
-
-    const bodyHtml = String(text || '').split(/\n\n+/).map(p => `<p>${escapeHtmlAttr(p.trim())}</p>`).join('');
-
-    return `<!doctype html>
-<html lang="${escapeHtmlAttr(language)}">
-<head>
-<meta charset="utf-8">
-<title>Cover letter</title>
-<style>
-  @page { size: A4; margin: 0; }
-  body { font-family: Georgia, 'Times New Roman', serif; color: #111; line-height: 1.6; font-size: 11pt; margin: 0; padding: 0; }
-  .page { padding: 22mm 22mm 22mm 22mm; }
-  .header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 26px; }
-  .header h1 { margin: 0 0 6px; font-size: 22pt; font-weight: 600; letter-spacing: 0.2px; }
-  .contact { font-size: 9.5pt; color: #444; display: flex; flex-wrap: wrap; gap: 14px; }
-  .contact a { color: #444; text-decoration: none; border-bottom: 1px solid transparent; }
-  .date { color: #555; margin-bottom: 18px; }
-  .greeting { margin-bottom: 16px; }
-  p { margin: 0 0 14px; text-align: justify; hyphens: auto; }
-  .closing { margin-top: 24px; }
-  .signature { margin-top: 4px; font-weight: 600; }
-</style>
-</head>
-<body>
-  <div class="page">
-    <div class="header">
-      <h1>${escapeHtmlAttr(candidateName || '')}</h1>
-      <div class="contact">
-        ${email ? `<span>${escapeHtmlAttr(email)}</span>` : ''}
-        ${linkedin ? `<a href="${escapeHtmlAttr(linkedin)}">${escapeHtmlAttr(linkedin)}</a>` : ''}
-        ${cvUrl ? `<a href="${escapeHtmlAttr(cvUrl)}">${escapeHtmlAttr(cvUrl)}</a>` : ''}
-      </div>
-    </div>
-    <div class="date">${escapeHtmlAttr(today)}</div>
-    <div class="greeting">${greeting}</div>
-    ${bodyHtml}
-    <div class="closing">${closing}</div>
-    <div class="signature">${escapeHtmlAttr(candidateName || '')}</div>
-  </div>
-</body>
-</html>`;
-}
-
-async function renderCoverLetterPdf(html) {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process', '--no-zygote', '--disable-gpu'],
-    });
-    try {
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 });
-        return await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    } finally {
-        await browser.close();
-    }
-}
-
 app.post('/api/admin/tailor/cover-letter-pdf', async (req, res) => {
     const { base_version_id, text, company_name, language, target_slug } = req.body || {};
 
@@ -1090,41 +1210,45 @@ app.post('/api/admin/tailor/cover-letter-pdf', async (req, res) => {
         return res.status(400).json({ error: 'Cover letter text exceeds 8,000 character limit.' });
     }
 
-    let client;
     try {
-        client = await pool.connect();
-        const ci = await client.query(
-            'SELECT name, email, linkedin FROM contact_info WHERE version_id = $1',
+        // pool.query (not a held client) so no connection is pinned while Chromium renders.
+        const ci = await pool.query(
+            'SELECT name, email, phone, linkedin, website, subtitle, subtitle_es FROM contact_info WHERE version_id = $1',
             [base_version_id]
         );
         const contact = ci.rows[0] || {};
+        const lang = language === 'es' ? 'es' : 'en';
 
-        const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
-        const cvUrl = target_slug ? `${baseUrl}/?v=${encodeURIComponent(target_slug)}` : null;
+        const baseUrl = publicBaseUrl(req);
+        const cvUrl = target_slug
+            ? `${baseUrl}/?v=${encodeURIComponent(target_slug)}${lang === 'es' ? '&lang=es' : ''}`
+            : null;
 
         const html = buildCoverLetterHtml({
             text,
             candidateName: contact.name || '',
+            // Same subtitle the resume header shows for this language.
+            subtitle: (lang === 'es' ? contact.subtitle_es : contact.subtitle) || '',
             email: contact.email || '',
+            phone: contact.phone || '',
             linkedin: contact.linkedin || '',
+            website: contact.website || '',
             cvUrl,
             companyName: company_name || '',
-            language: language === 'es' ? 'es' : 'en',
+            language: lang,
         });
 
-        const pdf = await serializeRender(() => renderCoverLetterPdf(html));
+        const pdf = await serializeRender(() => renderPdf(html));
 
         const filenameSlug = (company_name || 'cover-letter')
             .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cover-letter';
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="cover-letter-${filenameSlug}.pdf"`);
-        res.send(Buffer.from(pdf));
+        res.send(pdf);
     } catch (err) {
         console.error('Cover letter PDF error:', err.message);
         res.status(500).json({ error: err.message });
-    } finally {
-        if (client) client.release();
     }
 });
 

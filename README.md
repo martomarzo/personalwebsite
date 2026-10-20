@@ -1,105 +1,68 @@
-# Martín Marzorati - Personal Portfolio & Dynamic CV
+# Martín Marzorati — Personal Portfolio & Dynamic CV
 
-A modern, fully dynamic, and bilingual personal portfolio website. This project has evolved from a static HTML site into a robust full-stack application, featuring a custom Admin Panel for content management, multi-version support, and a professional documentation page.
+A bilingual (English/Spanish) online CV with a private admin panel. All content (experience, education, projects, skills, summaries) lives once in a shared library, and any number of **resume versions** choose what to show. Each version has its own link and a PDF export, and an AI wizard can create a version tailored to a job posting. Full feature notes: [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md). Release notes: [`CHANGELOG.md`](CHANGELOG.md).
 
-## 🚀 Core Features
+## Features
 
-### 1. Dynamic Content Management
-- **Full-Stack Architecture:** Powered by a Node.js/Express backend and a PostgreSQL database.
-- **Admin Panel:** A dedicated dashboard (`/admin`) to manage all professional data without touching code.
-- **Content Pools:** Unified database for Experience, Education, Projects, and Skills that can be reused across different CV versions.
+### Public site
+- Versioned pages: `/?v=<slug>&lang=<en|es>`, fully translated interface, Spanish month names.
+- Editorial dark/light design with motion: letter-by-letter hero reveal, scroll-lit summary, experience timeline that fills as you scroll, cursor glow, magnetic buttons, circular theme reveal, smooth scrolling (GSAP + ScrollTrigger + Lenis). All motion is off for reduced-motion users, and content stays visible if the scripts fail to load.
+- Mobile menu overlay, language and theme switches in the top bar, "Download CV" button, copy-email button.
+- Home server documentation page (`server-info.html`) driven by the database.
 
-### 2. Professional Versioning & Privacy
-- **Unique URL Slugs:** Generate custom links for specific job applications (e.g., `?v=pm-lead` or `?v=devops-specialist`).
-- **One-Click Duplication:** Easily clone an existing resume version to create a tailored variation in seconds.
-- **Automatic Slug Generation:** Slugs are automatically synchronized with version names for clean, professional URLs.
+### Admin panel (`/admin`)
+- Password login (JWT cookie).
+- Global profile (name, contacts, photo) shared by every version.
+- Versions: create, rename, duplicate, delete, open, download PDF (EN/ES); per-version section visibility, subtitles and section titles in both languages.
+- Content library with per-version visibility switches and a side-panel bilingual editor.
+- Server Info editor.
+- **Tailor with AI**: paste a job description, review and edit the AI's rewrite of experience, summary and skills, optionally generate a cover letter, save as a new version.
 
-### 3. Truly Bilingual (English & Spanish)
-- **Seamless Toggling:** Visitors can switch between English and Spanish with a single click.
-- **Bilingual Section Titles:** Customize section headers (e.g., "Experience" vs "Experiencia") independently for each language.
-- **Side-by-Side Editing:** The Admin Panel features a bilingual modal layout for simultaneous EN/ES content management.
+### PDF export
+- Dedicated A4 resume template rendered server-side with Puppeteer (clickable contact details, page numbers, localized labels), cached in the database until the content changes.
+- Matching cover-letter PDF.
+- Endpoints: `GET /api/resume/pdf/:slug/:lang` (public, rate-limited on fresh renders) and `GET /api/download/pdf/:id/:lang` (admin).
 
-### 4. Modern UI/UX
-- **Glassmorphism Design:** A sleek, semi-transparent navigation bar and card system.
-- **Dark Mode:** A persistent, high-contrast dark theme with a floating toggle.
-- **Scroll Animations:** Smooth "fade-in and slide-up" effects as sections enter the viewport.
-- **Dynamic Navigation:** The nav bar automatically updates based on section visibility and custom titles.
-- **Custom Notifications:** Sleek "Toast" notifications for a modern feedback experience in the Admin Panel.
+## Tech stack
+- **Frontend:** vanilla HTML/CSS/JS (no build step), GSAP 3.12.5, Lenis 1.3.26, Font Awesome 6.
+- **Backend:** Node.js, Express, PostgreSQL (`pg`), Puppeteer (PDF), Sharp (photo resizing), Multer (uploads), Anthropic SDK (AI tailoring).
 
-### 5. Server Documentation
-- **Integrated Specs:** A dedicated `server-info.html` page styled to match the main portfolio.
-- **Smart Navigation:** A "Back to Portfolio" button that remembers exactly which resume version the user came from.
-
----
-
-## 🛠 Tech Stack
-
-- **Frontend:** Vanilla JavaScript (ES6+), CSS3 (Custom Variables, Flexbox/Grid), HTML5.
-- **Backend:** Node.js, Express.js.
-- **Database:** PostgreSQL.
-- **Libraries:** 
-  - `pg` (PostgreSQL client)
-  - `multer` (File uploads for profile pictures)
-  - `dotenv` (Environment variable management)
-  - `cors` (Cross-origin resource sharing)
-  - `puppeteer` (Ready for PDF generation)
-
----
-
-## 📂 Project Structure
-
+## Project structure
 ```text
 ├── backend/
 │   ├── index.js          # Express server & API routes
-│   └── database.sql      # Database schema & migrations
-├── public/uploads/       # Uploaded profile pictures
-├── photos/               # Static assets & icons
-├── files/                # Downloadable documents
-├── index.html            # Main portfolio entry point
-├── server-info.html      # Server documentation page
-├── portfolio-main.js     # Main frontend logic
-├── admin.html            # Admin Panel UI
-├── admin-dashboard.js    # Admin Panel logic
-├── styles.css            # Global & Portfolio styles
-└── admin.css             # Admin-specific styles
+│   ├── pdf/              # Resume + cover letter templates and the Puppeteer renderer (+ tests)
+│   ├── llm/              # AI tailoring provider (Anthropic)
+│   ├── migrations/       # Idempotent SQL migrations
+│   └── database.sql      # Full schema
+├── docs/                 # Project overview, design specs and plans
+├── photos/               # Static images & favicon
+├── index.html            # Public CV page
+├── portfolio-main.js     # Public site + server page logic
+├── styles.css            # Design tokens + public site styles
+├── admin.html / admin.css / admin-dashboard.js   # Admin panel
+├── login.html            # Admin login
+└── server-info.html      # Home server documentation page
 ```
 
----
+## Getting started
 
-## 🚦 Getting Started
+Prerequisites: Node.js 18+ and PostgreSQL.
 
-### Prerequisites
-- Node.js (v16+)
-- PostgreSQL Database
-
-### Installation
-1. Clone the repository.
-2. Navigate to the `backend` directory:
-   ```bash
-   cd backend
-   npm install
-   ```
-3. Create a `.env` file in the `backend` folder with your credentials:
+1. `npm install` (also downloads the Chromium used for PDFs).
+2. Create `backend/.env`:
    ```text
    PORT=3000
-   DB_USER=your_user
-   DB_HOST=your_host
-   DB_DATABASE=resume
-   DB_PASSWORD=your_password
-   DB_PORT=5432
+   DATABASE_URL=postgres://user:password@host:5432/resume
+   ADMIN_PASSWORD=change-me
+   JWT_SECRET=a-long-random-string
+   PUBLIC_URL=https://your-domain.example      # used for absolute links in PDFs
+   ANTHROPIC_API_KEY=...                       # optional, enables AI tailoring
    ```
+3. Run `backend/database.sql` against your database to create the schema.
+4. `node backend/index.js` and open `http://localhost:3000`.
 
-### Database Setup
-Run the `backend/database.sql` script in your PostgreSQL instance to initialize the schema.
+Tests: `npm test` (PDF template tests, no database needed).
 
-### Running the Application
-Start the server:
-```bash
-node backend/index.js
-```
-The website will be available at `http://localhost:3000`.
-
----
-
-## 📄 License
-© 2025 Martín Marzorati. All rights reserved.
+## License
+© 2025–2026 Martín Marzorati. All rights reserved.
